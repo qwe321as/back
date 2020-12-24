@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.OneMemberMapper">
+
+    <insert id="insertOneMember" parameterType="com.crepass.restfulapi.one.domain.OneMember">
+            <![CDATA[
+                insert into mari_member(m_id, m_password, m_name, m_nick, m_nick_date, m_email, m_homepage, m_password_q, m_password_a
+                    , m_level, m_sex, m_birth, m_tel, m_hp, m_zip, m_addr1, m_addr2, m_sms, m_emoney, m_today_login, m_login_ip
+                    , m_datetime, m_ip, m_leave_date, m_email_certify, m_mailling, m_open, m_open_date, m_profile, m_invest_comment
+                    , m_memo_cnt, m_blindness, m_ipin, m_joinpath, m_signpurpose, m_intercept_date, m_referee, m_my_bankcode, m_my_bankname
+                    , m_my_bankacc, m_verifyaccountuse, m_key, m_fb, m_my_bankendtime, m_my_bankcode_b, m_my_bankname_b, m_my_bankacc_b
+                    , m_paymentamount, m_companynum, m_company_name, m_reginum, m_cdKey, m_inName, m_trAmt, m_sms_invest, m_business_type
+                    , m_pwcertify, m_with_zip, m_with_addr1, m_with_addr2, m_newsagency, m_declaration_01, m_declaration_02, m_evidence
+                    , m_bill, m_business_rijistar, m_seal_certification, m_token, m_tkey, m_cust_id, m_influx_type
+                ) values (#{mid}, #{passwd}, #{name}, '', CURRENT_TIMESTAMP(6), #{mid}, '', '', ''
+                    , 1, #{xes}, #{birth}, '', #{telhp}, #{zip}, #{addr1}, #{addr2}, #{sms}, 0, CURRENT_TIMESTAMP(6), ''
+                    , CURRENT_TIMESTAMP(6), '', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), 'N', 0, CURRENT_TIMESTAMP(6), '', ''
+                    , 0, #{blindness}, 'N', '', #{signPurpose}, '0000-00-00', '', '', ''
+                    , '', 'N', '', '', CURRENT_TIMESTAMP(6), '', '', ''
+                    , '', '', '', '', '', '', 0, 'N', ''
+                    , '', '', '', '', #{telcoGb}, '', '', ''
+                    , '', '', '', '', '', #{custId}, #{influxType}
+                )
+            ]]>
+    </insert>    
+    
+    <insert id="insertOneSeyfert" parameterType="com.crepass.restfulapi.one.domain.OneSeyfert">
+            <![CDATA[
+                insert into mari_seyfert(m_id, m_name, s_memGuid, s_redatetime, s_ip, s_memuse, phoneNo
+                , s_accntNo, s_bnkCd, custNm, inName, totAmt, trAmt, orgAmt, trnsctnTp, trnsctnSt, trDate
+                , trTime, redatetime, guide)
+                values (#{mid}, #{name}, #{memGuid}, CURRENT_TIMESTAMP(6), #{ipAddr}, #{memUse}, #{telhp}
+                , '', '', '', '', '', 0, 0, '', '', '0000-00-00'
+                , '00:00:00', '0000-00-00 00:00:00', 'N')
+            ]]>
+    </insert>
+    
+    <update id="updateMemberById" parameterType="com.crepass.restfulapi.one.domain.OneMember">
+            <![CDATA[
+                update mari_member
+                set  m_password = #{newpasswd}
+                    ,m_sms_invest = #{smsInvest}
+                where m_id = #{mid}
+            ]]>
+    </update>
+        
+    <select id="selectMemberIdCheck" resultType="string" parameterType="com.crepass.restfulapi.cre.domain.CreMember">
+        select m_id 
+          from mari_member 
+         where m_id = #{mid}
+    </select>
+    
+    <select id="selectMemberById" resultType="com.crepass.restfulapi.one.domain.MariMember">
+        select mm.m_no as mno 
+			, mm.m_signpurpose as signpurpose
+			, mm.m_name as name
+			, mm.m_id as mid
+			, mm.m_sex as xes
+			, mm.m_hp as hpnumber
+			, mm.m_birth as birth
+			, mm.m_sms_invest as smsinvest
+			, mm.m_with_zip as withholdingzip
+			, ms.s_accntNo as bankCode
+			, mm.m_newsagency as newsagency
+			, mm.m_my_bankacc as myBankacc
+			, mm.m_cust_id as custId
+			, mm.m_level as level
+		from mari_member mm
+		left join mari_seyfert ms
+		on ms.m_id = mm.m_id
+		where mm.m_id = #{mid}
+    </select>
+    
+    <select id="checkPasswordById" resultType="string" parameterType="string">
+        select m_id
+          from mari_member 
+         where m_id = #{param1}
+           and m_password = #{param2}
+    </select>
+    
+    <insert id="deleteBackupMemberById" parameterType="string">
+            <![CDATA[
+            INSERT INTO mari_member_leave
+                    (s_no, s_id, s_password, s_name, s_email, s_level, s_sex, s_tel, s_hp, s_zip, s_addr1, s_addr2, s_emoney, s_datetime, s_leave_date, s_ip, s_cust_id
+                    , s_bankname, s_my_bankname, s_my_bankacc)
+            SELECT m_no, m_id, m_password, m_name, m_email, m_level, m_sex, m_tel, m_hp, m_zip, m_addr1, m_addr2, m_emoney, m_datetime, CURRENT_TIMESTAMP(6), #{param2}, m_cust_id
+                    , m_bankname, m_my_bankname, m_my_bankacc
+            FROM mari_member
+            WHERE m_id = #{param1};
+            ]]>
+    </insert>
+    
+    <delete id="deleteMemberById" parameterType="string">
+        <![CDATA[
+            DELETE FROM mari_member
+            WHERE m_id = #{param1};
+        ]]>
+    </delete>    
+    
+    <select id="selectCustSeq" resultType="string" parameterType="string">
+	    { CALL getCustSeq() }
+    </select>
+    
+    <update id="updateMemberMoney" parameterType="string">
+            <![CDATA[
+                UPDATE mari_member
+				SET m_emoney = #{param1}
+				WHERE m_id = #{param2}
+			                
+            ]]>
+    </update>
+    
+    <select id="selectByCustIdToMid" resultType="String" parameterType="string">
+        SELECT m_id as mid
+		FROM mari_member
+		WHERE m_cust_id = #{param1};
+    </select>
+    
+    <select id="selectByLoanIdToMid" resultType="String" parameterType="string">
+        SELECT m_id as mid
+		FROM mari_loan
+		WHERE i_id = #{param1};
+    </select>
+    
+    <select id="selectCustID" resultType="String" parameterType="string">
+        SELECT m_cust_id as custId
+		FROM mari_member
+		WHERE m_id = #{param1};
+    </select>
+
+	<select id="selectCustID2" resultType="com.crepass.restfulapi.one.domain.OneMemberCustId" parameterType="string">
+        SELECT m_name as name, m_cust_id as custId
+		FROM mari_member
+		WHERE m_id = #{param1};
+    </select>
+    
+    <select id="selectUserConfirm" resultType="String" parameterType="string">
+        SELECT m_no
+		FROM mari_member
+		WHERE m_id = #{param1}
+		AND m_password = #{param2};
+    </select>
+    
+    <select id="selectCustAddInfo" resultType="com.crepass.restfulapi.one.domain.OneMemberCustAddInfo" parameterType="string">
+        SELECT cast(aes_decrypt(from_base64(mm.m_hp),'0982beb15fb2f0c584fa5872527c58b9', '0982beb15fb2f0c5') as char) as hp
+        , mm.m_my_bankacc as myBankacc, mm.m_my_bankcode as myBankcode
+        , ms.s_accntNo as virtualAccnt, mm.m_name as name, mm.m_birth as birth, mm.m_cust_id as custId
+		FROM mari_member mm
+		LEFT JOIN mari_seyfert ms
+		ON mm.m_id = ms.m_id
+		WHERE mm.m_id = #{param1};
+    </select>
+    
+    <select id="selectCustAddInfo2" resultType="com.crepass.restfulapi.one.domain.OneMemberCustAddInfo2" parameterType="string">
+        SELECT cast(aes_decrypt(from_base64(mm.m_hp),'0982beb15fb2f0c584fa5872527c58b9', '0982beb15fb2f0c5') as char) as hp
+		, mm.m_my_bankacc as myBankacc, mm.m_my_bankcode as myBankcode
+		, ms.s_accntNo as virtualAccnt, mm.m_name as name, mm.m_cust_id as custId
+		, mm.m_company_name as companyName, mm.m_companynum as companyNum
+		FROM mari_member mm
+		RIGHT JOIN mari_seyfert ms
+		ON mm.m_id = ms.m_id
+		WHERE mm.m_id = #{param1};
+    </select>
+    
+    <insert id="insertOneCertify" parameterType="com.crepass.restfulapi.one.domain.OneCertify">
+		<![CDATA[
+			insert into cpas_certify(m_no, certify_type, certify_result)
+			values (#{mno}, #{certifyType}, #{certifyResult})
+		]]>
+    </insert>
+    
+    <select id="selectCustConfirm" resultType="string" parameterType="string">
+		SELECT m_no as mno
+		FROM mari_member
+		WHERE m_hp = #{hp}
+		AND m_name = #{name}
+		AND m_newsagency = #{newsagency};
+    </select>
+    
+    <select id="selectCertifyWebDump" resultType="com.crepass.restfulapi.one.domain.OneCertifyWebDump" parameterType="string">
+		SELECT bi, certify_result as certifyResult, create_date as createDate
+		FROM cpae_certify_web_dump
+		WHERE bi = #{param1};
+    </select>
+    
+    <delete id="deleteCertifyWebDump" parameterType="string">
+    	DELETE FROM cpae_certify_web_dump
+    	WHERE bi = #{param1};
+    </delete>
+    
+    <select id="selectAutoInvestAgree" resultType="string" parameterType="string">
+		SELECT DISTINCT a_agreed_yn as agreedYN
+		FROM cpas_invest_auto TAB1
+		WHERE a_onoff = 'A'
+		AND m_id = #{param1}
+		AND a_id = (SELECT a_id FROM cpas_invest_auto WHERE m_id = TAB1.m_id ORDER BY a_update_date DESC LIMIT 1);
+    </select>
+    
+    <select id="selectUserAuthToken" resultType="string" parameterType="string">
+		SELECT m_no FROM mari_member WHERE m_token = #{param1};
+    </select>
+    
+    <select id="selectUserIdCheck" resultType="string" parameterType="string">
+		SELECT m_no FROM mari_member WHERE m_id = #{param1};
+    </select>
+    
+    <select id="selectTradeCheck" resultType="string" parameterType="string">
+		SELECT DISTINCT mi.loan_id FROM mari_invest mi
+		INNER JOIN mari_loan ml
+		ON ml.i_id = mi.loan_id
+		LEFT JOIN mari_invest_progress mip
+		ON mip.loan_id = mi.loan_id
+		WHERE (mi.m_id = #{param1} OR mi.user_id = #{param2})
+		AND (ml.i_loanapproval = 'N' OR ml.i_loanapproval = 'E' OR ml.i_loanapproval = 'A' OR ml.i_loanapproval = 'Y')
+		AND (mip.i_look = 'Y' OR mip.i_look = 'C' OR mip.i_look = 'N' OR mip.i_look = 'D');
+    </select>
+    
+    <update id="updateMemberAuthToken" parameterType="string">
+		<![CDATA[
+			UPDATE mari_member
+			SET m_token = #{param2}
+			WHERE m_id = #{param1}
+		]]>
+    </update>
+    
+    <update id="updateMemberPW" parameterType="string">
+		<![CDATA[
+			UPDATE mari_member
+			SET m_password = #{param2}
+			WHERE m_id = #{param1};
+		]]>
+    </update>
+    
+    <!-- api v2 start -->
+    <select id="isDuplicate" resultType="int">
+    	select count(m_id)
+		from mari_member
+		where m_hp = #{telhp} and m_name = #{name} and m_newsagency = #{telcoGb}
+    </select>
+    
+    <insert id="insertMember" parameterType="com.crepass.restfulapi.v2.domain.Member">
+    	insert into mari_member(m_id, m_password, m_name, m_nick, m_nick_date, m_email, m_homepage, m_password_q, m_password_a
+                    , m_level, m_sex, m_birth, m_tel, m_hp, m_zip, m_addr1, m_addr2, m_sms, m_emoney, m_today_login, m_login_ip
+                    , m_datetime, m_ip, m_leave_date, m_email_certify, m_mailling, m_open, m_open_date, m_profile, m_invest_comment
+                    , m_memo_cnt, m_blindness, m_ipin, m_joinpath, m_signpurpose, m_intercept_date, m_referee, m_my_bankcode, m_my_bankname
+                    , m_my_bankacc, m_verifyaccountuse, m_key, m_fb, m_my_bankendtime, m_my_bankcode_b, m_my_bankname_b, m_my_bankacc_b
+                    , m_paymentamount, m_companynum, m_company_name, m_reginum, m_cdKey, m_inName, m_trAmt, m_sms_invest, m_business_type
+                    , m_pwcertify, m_with_zip, m_with_addr1, m_with_addr2, m_newsagency, m_declaration_01, m_declaration_02, m_evidence
+                    , m_bill, m_business_rijistar, m_seal_certification, m_token, m_tkey, m_cust_id, m_influx_type
+                ) values (#{mid}, #{pwd}, #{name}, '', CURRENT_TIMESTAMP(6), #{mid}, '', '', ''
+                    , #{level}, #{gender}, #{birth}, '', #{telhp}, '', '', '', #{sms}, 0, CURRENT_TIMESTAMP(6), ''
+                    , CURRENT_TIMESTAMP(6), '', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), 'N', 0, CURRENT_TIMESTAMP(6), '', ''
+                    , 0, #{blindness}, 'N', '', #{signPurpose}, '0000-00-00', '', '', ''
+                    , '', 'N', '', '', CURRENT_TIMESTAMP(6), '', '', ''
+                    , '', '', '', '', '', '', 0, 'N', ''
+                    , '', '', '', '', #{telcoGb}, '', '', ''
+                    , '', '', '', #{token}, '', #{custId}, #{influxType}
+                )
+    </insert>
+    
+    <select id="getMember" resultType="com.crepass.restfulapi.v2.domain.MemberInfo">
+    	SELECT m_no AS mno, m_id AS mid, m_name AS name, m_hp AS telhp
+			, m_birth AS birth, m_cust_id AS custId, m_profile AS profile
+		    , m_invest_comment AS memo, IF(m_nick = '', 'Y', 'N') AS isPublicName
+		FROM mari_member
+		WHERE m_id = #{mid};    
+    </select>
+    
+    <update id="updateMember">
+    	UPDATE mari_member
+		SET m_nick = #{nickName}, m_profile = #{fileName}, m_invest_comment = #{memo}, m_password = #{pwdNewOk}
+		WHERE m_id = #{mid} and m_password = #{pwd}
+    </update>
+    
+    <select id="selectMemberModInfo" resultType="com.crepass.restfulapi.v2.domain.MemberModInfo" parameterType="string">
+		SELECT m_password AS pwd, m_name AS mname, m_profile AS profilePath from mari_member where m_id = #{mid};
+    </select>
+    
+    <update id="updateNickName">
+    	update
+    		mari_member
+    	set
+    		<if test="isPublicName == 'N'.toString()">
+    		m_nick = concat(substring(m_name,1,1),'**')
+    		</if>
+    		<if test="isPublicName == 'Y'.toString()">
+    		m_nick = ""
+    		</if>
+    	where
+    		m_id = #{mid}
+    </update>
+    
+    <select id="selectMemberInvestInfo" resultType="com.crepass.restfulapi.v2.domain.MemberInvestInfo" parameterType="string">
+		SELECT mm.m_my_bankcode AS bankCode, mm.m_my_bankname AS bankAccntName, mm.m_my_bankacc AS bankAccntNum, mm.m_bankname AS bankName
+		, mm.m_birth AS birth, mm.m_sex AS gender
+		, RIGHT(CAST(AES_DECRYPT(FROM_BASE64(mm.m_reginum),'0982beb15fb2f0c584fa5872527c58b9', '0982beb15fb2f0c5') AS CHAR), 6) AS reginum
+		, ms.s_accntNo AS investVirAccntNum
+		FROM mari_member mm
+		LEFT JOIN mari_seyfert ms ON ms.m_id = mm.m_id
+		WHERE mm.m_id = #{mid};
+    </select>
+    
+    <insert id="insertEmailValidation" parameterType="string">
+            <![CDATA[
+               INSERT INTO cpas_email_validation (`m_id`, `m_email_token`) VALUES (#{param1}, #{param2});
+               
+            ]]>
+    </insert>
+    
+    <select id="selectMemberByPhone" resultType="com.crepass.restfulapi.v2.domain.Member">
+        <![CDATA[
+		    SELECT mm.m_id AS mid, mm.m_password AS pwd, mm.m_name AS name,  mm.m_nick AS nickName,  mm.m_hp AS telhp, mm.m_birth AS birth,
+						mm.m_sex AS gender, mm.m_cust_id AS custId, mm.m_newsagency AS telcoGb, mm.m_level AS level,  mm.m_sms AS sms, mm.m_token AS token,
+						mm.m_signpurpose AS signpurpose,  mm.m_influx_type AS influxType
+			FROM mari_member mm
+			LEFT JOIN mari_seyfert ms ON ms.m_id = mm.m_id
+			WHERE m_newsagency = #{param1} AND mm.m_hp = #{param2} 
+			ORDER BY m_datetime DESC	
+		    LIMIT 1
+		    ;
+       ]]>
+    </select>
+    
+</mapper>

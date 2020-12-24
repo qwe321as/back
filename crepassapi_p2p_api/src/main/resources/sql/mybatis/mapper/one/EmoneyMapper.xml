@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.EmoneyMapper">
+
+    <select id="selectEmoneyById" resultType="com.crepass.restfulapi.one.domain.OneEmoney" parameterType="string">
+        SELECT DATE_FORMAT(o_paydatetime, '%Y-%m-%d') as trData
+                , o_pay as trAmt
+        FROM mari_outpay
+        WHERE m_id = #{mid}
+        UNION 
+        SELECT DATE_FORMAT(trDate, '%Y-%m-%d') as trData
+                , (trAmt*-1) as trAmt
+        FROM mari_seyfert
+        WHERE m_id = #{mid}
+    </select>
+    
+    <select id="selectTrAmtBalanceById" resultType="double" parameterType="string">
+         select IFNULL(m_emoney, 0) as m_emoney
+          from mari_member 
+         where m_id = #{mid}
+    </select>
+    
+    <select id="selectEmoneyRetreive" resultType="com.crepass.restfulapi.one.domain.OneEmoneyBank" parameterType="string">
+         SELECT s_bnkCd as myBankCodeVb
+                , s_accntNo as myBankaccVb
+                , m_my_bankname as myName
+                , m_my_bankcode as myBankCode
+                , m_bankname as myBankName
+                , m_my_bankacc as myBankacc
+                , totAmt as topEmoney
+                , s_loanAccntNo as loanAccntNo
+          FROM mari_member mm
+          INNER JOIN mari_seyfert sf ON mm.m_id = sf.m_id
+          WHERE mm.m_id = #{mid}
+    </select>
+    
+	<update id="updateEmoneyBankName" parameterType="com.crepass.restfulapi.one.domain.OneEmoneyBankName">
+		<![CDATA[
+			update mari_member
+			set  m_bankname = #{myBankName}
+			where m_id = #{mid}
+		]]>
+	</update>
+    
+    <select id="selectInvestProgressPay" resultType="com.crepass.restfulapi.one.domain.OneEmoneyInvestPay" parameterType="string">
+    	<![CDATA[
+	        SELECT IFNULL(SUM(mi.i_pay), 0) as ipay, mm.m_cust_id as custId
+			FROM mari_member mm
+			RIGHT JOIN mari_invest mi
+			ON mi.m_id = mm.m_id
+			RIGHT JOIN mari_invest_progress mip
+			ON mi.loan_id = mip.loan_id
+			RIGHT JOIN mari_loan ml ON ml.i_id = mip.loan_id
+			WHERE mip.i_look = 'Y' AND ml.i_loanapproval <> 'C'
+			AND mm.m_id = #{param1};
+		]]>
+    </select>
+    
+    <update id="updateEmoney" parameterType="String">
+		<![CDATA[
+			UPDATE mari_member
+			SET m_emoney = #{param1}
+			WHERE m_id = #{param2}
+		]]>
+	</update>
+	
+	<select id="selectEmoneyInvestIsPlaying" resultType="string" parameterType="string">
+    	<![CDATA[
+			SELECT IFNULL(SUM(mi.i_pay), 0) AS iPay
+			FROM mari_invest mi
+			RIGHT JOIN mari_loan ml ON ml.i_id = mi.loan_id
+			WHERE mi.m_id = #{param1}
+            AND ml.i_loanapproval IN ('E','Y','A') AND ml.i_exec_date IS NULL;
+        ]]>
+    </select>
+    
+    <update id="updateTopEmoney" parameterType="String">
+		<![CDATA[
+			UPDATE mari_seyfert
+			SET totAmt = #{param1}
+			WHERE m_id = #{param2};
+		]]>
+	</update>
+    
+    <select id="selectEmoneyWithdrawPay" resultType="string" parameterType="string">
+        SELECT IFNULL(SUM(o_pay), 0)
+		FROM mari_outpay
+		WHERE m_id = #{param1}
+		AND o_fin = 'N';
+    </select>
+
+	<select id="selectEmoneyWithdrawPay2" resultType="string" parameterType="string">
+        SELECT IFNULL(SUM(trx_amt), 0) AS trxAmt
+		FROM cpas_withdraw_trx
+		WHERE m_id = #{param1}
+		AND trx_flag = 'N' AND type_flag = 'I';
+    </select>
+    
+    <select id="selectEmoneyPayInfo" resultType="com.crepass.restfulapi.one.domain.OneEmoneyInvestPay" parameterType="string">
+    	SELECT (SELECT IFNULL(SUM(mi.i_pay), 0) FROM mari_invest_progress mip RIGHT JOIN mari_invest mi
+		ON mi.loan_id = mip.loan_id RIGHT JOIN mari_loan ml ON ml.i_id = mip.loan_id
+        WHERE mi.m_id = mm.m_id
+        AND (ml.i_loanapproval = 'N' OR ml.i_loanapproval = 'E' OR ml.i_loanapproval= 'A' OR ml.i_loanapproval= 'Y') AND loan_step4 = 'N') as ipay, m_cust_id as custId
+		FROM mari_member mm WHERE mm.m_id = #{param1};
+    </select>
+    
+    <select id="selectEmoneyDetailHistory" resultType="com.crepass.restfulapi.one.domain.OneEmoneyDetailHistory" parameterType="string">
+	    <![CDATA[
+	        SELECT trx_type as trxType, trx_amt as trxAmt, DATE_FORMAT(created_date, '%Y-%m-%d %H:%i') as createDt
+			FROM cpas_trx_log
+			WHERE m_id = #{param1}
+			ORDER BY created_date DESC;
+		]]>
+    </select>
+    
+    <select id="selectEmoneyDetailHistory2" resultType="com.crepass.restfulapi.one.domain.OneEmoneyDetailHistory" parameterType="string">
+	    <![CDATA[			
+			SELECT ms.s_accntNo as accntNo, ctl.trx_type as trxType, ctl.trx_amt as trxAmt, DATE_FORMAT(ctl.created_date, '%Y-%m-%d %H:%i') as createDt
+			FROM cpas_trx_log ctl
+            LEFT JOIN mari_seyfert ms
+            ON ms.m_id = ctl.m_id
+			WHERE ctl.m_id = #{param1} AND ctl.type_flag = #{param2}
+			ORDER BY ctl.created_date DESC;
+		]]>
+    </select>
+    
+    <select id="selectEmoneyRepaymentBalance" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT IF((SELECT IFNULL(SUM(trx_amt), 0) FROM cpas_trx_log WHERE type_flag = 'L' AND trx_type = 'D' AND m_id = #{param1})
+ 			- (SELECT IFNULL(SUM(trx_amt), 0) FROM cpas_trx_log WHERE type_flag = 'L' AND trx_type = 'W' AND m_id = #{param1}) < 0, 0
+            , (SELECT IFNULL(SUM(trx_amt), 0) FROM cpas_trx_log WHERE type_flag = 'L' AND trx_type = 'D' AND m_id = #{param1})
+ 			- (SELECT IFNULL(SUM(trx_amt), 0) FROM cpas_trx_log WHERE type_flag = 'L' AND trx_type = 'W' AND m_id = #{param1})) AS RepaymentDeposit;
+		]]>
+    </select>
+    
+    <select id="selectEmoneyDetailHistoryRepayment" resultType="com.crepass.restfulapi.one.domain.OneEmoneyDetailHistory2" parameterType="string">
+	    <![CDATA[
+	        SELECT ml.i_loanAccntNo as accntNo, IF(cdt.tr_amt IS NOT NULL, 'D', '') AS trxType, cdt.tr_amt as trxAmt, DATE_FORMAT(cdt.updated_date, '%Y-%m-%d %H:%i') as createDt
+			FROM cpas_deposit_trx cdt
+			LEFT JOIN mari_loan ml
+			ON ml.i_loanAccntNo = cdt.acct_nb
+			WHERE cdt.type_flag = 'L'
+			AND batch_flag = 'S'
+			AND ml.m_id = #{param1}
+			UNION
+			SELECT ml.i_loanAccntNo as accntNo, IF(cwt.trx_amt IS NOT NULL, 'W', '') AS trxType, cwt.trx_amt as trxAmt, DATE_FORMAT(cwt.created_date, '%Y-%m-%d %H:%i') as createDt
+			FROM cpas_withdraw_trx cwt
+			LEFT JOIN mari_loan ml
+			ON ml.i_id = cwt.loan_id
+			WHERE cwt.type_flag = 'L'
+			AND cwt.trx_flag = 'S'
+			AND ml.m_id = #{param1}
+			ORDER BY createDt DESC;
+		]]>
+    </select>
+    
+    <select id="selectEmoneyInvestBalance" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT IFNULL((SELECT SUM(trx_amt) FROM cpas_trx_log WHERE m_id = #{param1} AND type_flag = 'I' AND trx_type = 'D')
+ 			- IFNULL((SELECT SUM(trx_amt) FROM cpas_trx_log WHERE m_id = #{param1} AND type_flag = 'I' AND trx_type = 'W'), 0), 0) AS trxAmt;
+		]]>
+    </select>
+    
+    <select id="selectEmoneyInvestWithdrawPay" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT SUM(cdt.tr_amt)
+			FROM cpas_deposit_trx cdt, mari_member mm
+			WHERE cdt.cust_id = mm.m_cust_id AND mm.m_id = #{param1}
+			AND type_flag = 'I' AND batch_flag = 'S' AND TIMESTAMPDIFF(DAY, updated_date, CURRENT_TIMESTAMP(6)) = 0;
+		]]>
+    </select>
+    
+</mapper>

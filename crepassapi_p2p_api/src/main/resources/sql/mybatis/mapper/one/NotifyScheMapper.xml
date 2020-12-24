@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.NotifyScheMapper">
+
+    <select id="selectRepaymentManageNomal" resultType="com.crepass.restfulapi.one.domain.OneRepaymentManage" parameterType="string">
+	    <![CDATA[
+			SELECT DISTINCT ml.i_id AS loanId, ml.m_id AS mid, ml.i_subject AS subject, ml.m_name AS name, ml.i_loan_pay AS loanPay
+			FROM mari_loan ml, cpas_payment_schedule cps, cpas_repayment_schedule crs
+			WHERE cps.p_pay_status = 'N' AND cps.p_pay_date <= DATE_FORMAT(CURRENT_DATE() + INTERVAL 1 DAY, '%Y-%m-%d')
+			AND cps.loan_id = ml.i_id AND crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count
+			AND ml.i_id NOT IN (SELECT DISTINCT crs.loan_id FROM cpas_repayment_schedule crs RIGHT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count WHERE cps.p_pay_status = 'N' AND crs.r_delq_state >= 1)
+			AND ml.i_look NOT IN  ('R','B','S');
+		]]>
+    </select>
+    
+    <select id="selectRepaymentManageOrverDue" resultType="com.crepass.restfulapi.one.domain.OneRepaymentManage" parameterType="string">
+	    <![CDATA[
+			SELECT DISTINCT ml.i_id AS loanId, ml.m_id AS mid, ml.i_subject AS subject, ml.m_name AS name, ml.i_loan_pay AS loanPay
+			FROM mari_loan ml, cpas_payment_schedule cps, cpas_repayment_schedule crs
+			WHERE cps.p_pay_status = 'N' AND cps.p_pay_date <= DATE_FORMAT(CURRENT_DATE() + INTERVAL 1 DAY, '%Y-%m-%d')
+			AND cps.loan_id = ml.i_id AND crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count
+			AND ml.i_id IN (SELECT DISTINCT crs.loan_id FROM cpas_repayment_schedule crs RIGHT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count WHERE cps.p_pay_status = 'N' AND crs.r_delq_state = 1)
+			AND ml.i_look NOT IN  ('R','B','S');
+		]]>
+    </select>
+    
+    <select id="selectRepaymentManagePrePay" resultType="com.crepass.restfulapi.one.domain.OneRepaymentManage" parameterType="string">
+	    <![CDATA[
+			SELECT DISTINCT ml.i_id AS loanId, ml.m_id AS mid, ml.i_subject AS subject, ml.m_name AS name, ml.i_loan_pay AS loanPay
+			FROM mari_loan ml, cpas_payment_schedule cps, cpas_repayment_schedule crs
+			WHERE cps.p_pay_status = 'N' AND cps.p_pay_date <= DATE_FORMAT(CURRENT_DATE() + INTERVAL 1 DAY, '%Y-%m-%d')
+			AND cps.loan_id = ml.i_id AND crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count
+			AND ml.i_id IN (SELECT DISTINCT crs.loan_id FROM cpas_repayment_schedule crs RIGHT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count WHERE cps.p_pay_status = 'N' AND crs.r_delq_state = 2)
+			AND ml.i_look NOT IN  ('R','B','S');
+		]]>
+    </select>
+    
+    <select id="selectRepaymentUserInfo" resultType="com.crepass.restfulapi.one.domain.OneRepaymentUserInfo" parameterType="string">
+	    <![CDATA[
+			SELECT DISTINCT ml.m_name AS name, crs.r_count AS count, crs.r_pay_amount AS payAmount, ml.i_loanAccntNo AS loanAccntNo, crs.r_repay_date AS repayDate, cps.p_pay_date AS payDate
+			, CAST(aes_decrypt(from_base64(mm.m_hp),'0982beb15fb2f0c584fa5872527c58b9', '0982beb15fb2f0c5') AS CHAR) AS hp, mm.m_cust_id AS custId, ml.i_id AS loanId
+			FROM mari_loan ml, cpas_payment_schedule cps, cpas_repayment_schedule crs, mari_member mm
+			WHERE cps.p_pay_status = 'N' AND cps.p_pay_date = #{param1}
+			AND cps.loan_id = ml.i_id AND crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count AND mm.m_id = ml.m_id
+			AND ml.i_id NOT IN (SELECT DISTINCT crs.loan_id FROM cpas_repayment_schedule crs RIGHT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count WHERE cps.p_pay_status = 'N' AND crs.r_delq_state >= 1)
+			AND ml.i_look NOT IN ('R','B','S');
+		]]>
+    </select>
+    
+    <select id="selectRepaymentOrverdueUserInfo" resultType="com.crepass.restfulapi.one.domain.OneRepaymentUserInfo" parameterType="string">
+	    <![CDATA[
+			SELECT DISTINCT ml.m_name AS name, crs.r_count AS count, (crs.r_pay_amount + crs.r_delq_amount) AS payAmount, ml.i_loanAccntNo AS loanAccntNo, crs.r_repay_date AS repayDate, cps.p_pay_date AS payDate
+			, CAST(aes_decrypt(from_base64(mm.m_hp),'0982beb15fb2f0c584fa5872527c58b9', '0982beb15fb2f0c5') AS CHAR) AS hp, mm.m_cust_id AS custId, ml.i_id AS loanId
+			FROM mari_loan ml, cpas_payment_schedule cps, cpas_repayment_schedule crs, mari_member mm
+			WHERE cps.p_pay_status = 'N' AND cps.p_pay_date <= #{param1} AND mm.m_cust_id NOT IN (SELECT cust_id FROM cpas_sms_history WHERE TIMESTAMPDIFF(DAY, DATE_FORMAT(created_dt, '%Y-%m-%d'), #{param1}) < 20 AND use_flag = #{param2} AND (batch_flag = 'N' OR batch_flag = 'S'))
+			AND cps.loan_id = ml.i_id AND crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count AND mm.m_id = ml.m_id
+			AND ml.i_id IN (SELECT DISTINCT crs.loan_id FROM cpas_repayment_schedule crs RIGHT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count WHERE cps.p_pay_status = 'N' AND crs.r_delq_state = 1)
+			AND cps.p_count = (SELECT DISTINCT crs.r_count FROM cpas_repayment_schedule crs RIGHT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count WHERE crs.loan_id = ml.i_id AND cps.p_pay_status = 'N' AND crs.r_delq_state = 1 ORDER BY crs.r_count DESC LIMIT 1)
+			AND ml.i_id NOT IN (SELECT DISTINCT crs.loan_id FROM cpas_repayment_schedule crs RIGHT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count WHERE cps.p_pay_status = 'N' AND crs.r_delq_state = 2)
+			AND ml.i_look NOT IN ('R','B','S')
+			GROUP BY ml.i_id;
+		]]>
+    </select>
+    
+    <!-- <select id="selectRepaymentOrverdueUserInfo" resultType="com.crepass.restfulapi.one.domain.OneRepaymentUserInfo" parameterType="string">
+	    <![CDATA[
+			SELECT DISTINCT ml.m_name AS name, crs.r_count AS count, (crs.r_pay_amount + crs.r_delq_amount) AS payAmount, ml.i_loanAccntNo AS loanAccntNo, crs.r_repay_date AS repayDate, cps.p_pay_date AS payDate
+			, CAST(aes_decrypt(from_base64(ml.m_hp),'0982beb15fb2f0c584fa5872527c58b9', '0982beb15fb2f0c5') AS CHAR) AS hp, mm.m_cust_id AS custId, ml.i_id AS loanId
+			FROM mari_loan ml, cpas_payment_schedule cps, cpas_repayment_schedule crs, mari_member mm
+			WHERE cps.p_pay_status = 'N' AND cps.p_pay_date <= #{param1} AND mm.m_cust_id NOT IN (SELECT cust_id FROM cpas_sms_history WHERE TIMESTAMPDIFF(MONTH, created_dt, cps.p_pay_date) < 1 AND use_flag = #{param2} AND (batch_flag = 'N' OR batch_flag = 'S'))
+			AND cps.loan_id = ml.i_id AND crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count AND mm.m_id = ml.m_id
+			AND ml.i_id IN (SELECT DISTINCT crs.loan_id FROM cpas_repayment_schedule crs RIGHT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count WHERE cps.p_pay_status = 'N' AND crs.r_delq_state = 1)
+			GROUP BY ml.i_id;
+		]]>
+    </select> -->
+    
+    <insert id="insertSendSMS" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_sms_history(name, type, cust_id, use_flag, request)
+			VALUES(#{param1}, #{param2}, #{param3}, #{param4}, #{param5});
+        ]]>
+    </insert>
+    
+    <insert id="insertSendSMSFail" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_sms_history(name, type, cust_id, use_flag, request, batch_flag)
+			VALUES(#{param1}, #{param2}, #{param3}, #{param4}, #{param5}, 'D');
+        ]]>
+    </insert>
+    
+    <select id="selectSendRepaymentSMS" resultType="com.crepass.restfulapi.one.domain.OneSendSMS" parameterType="string">
+	    <![CDATA[
+			SELECT created_dt AS createDt, name, type, request FROM cpas_sms_history WHERE batch_flag = 'N' AND send_dt <= CURRENT_TIMESTAMP(6) ORDER BY created_dt ASC LIMIT 5;
+		]]>
+    </select>
+    
+    <update id="updateSendSMS" parameterType="string">
+		<![CDATA[
+			UPDATE cpas_sms_history
+			SET batch_flag = #{param4}, response = #{param5}, cmid = #{param6}, updated_dt = CURRENT_TIMESTAMP(6)
+			WHERE created_dt = #{param1} AND name = #{param2} AND type = #{param3} AND batch_flag = 'N';
+		]]>
+	</update>
+    
+    <select id="selectSendSMSByCMID" resultType="com.crepass.restfulapi.one.domain.OneSendSMSByCMID" parameterType="string">
+	    <![CDATA[
+			SELECT created_dt AS createDt, cmid FROM cpas_sms_history
+			WHERE result IS NULL AND cmid IS NOT NULL AND cmid <> '' AND TIMESTAMPDIFF(SECOND, created_dt, CURRENT_TIMESTAMP(6)) > 30
+			ORDER BY created_dt DESC LIMIT 20;
+		]]>
+    </select>
+    
+    <update id="updateSendSMSResult" parameterType="string">
+		<![CDATA[
+			UPDATE cpas_sms_history
+			SET result = #{param3}
+			WHERE created_dt = #{param1} AND cmid = #{param2};
+		]]>
+	</update>
+    
+    <select id="selectLoanCancelInvestUser" resultType="com.crepass.restfulapi.one.domain.OneStartInvestUserInfo" parameterType="string">
+	    <![CDATA[
+	        SELECT mi.m_id AS mid, mm.m_cust_id AS custId, mi.m_name AS name, mi.i_pay AS investPay, mi.i_subject AS subject
+			, CAST(AES_DECRYPT(FROM_BASE64(mm.m_hp),'0982beb15fb2f0c584fa5872527c58b9', '0982beb15fb2f0c5') AS CHAR) AS hp
+			FROM mari_invest mi, mari_member mm WHERE mm.m_id = mi.m_id
+			AND mi.loan_id IN (SELECT i_id FROM mari_loan WHERE DATE_FORMAT(i_modidatetime, '%Y-%m-%d') = CURRENT_DATE() AND i_loanapproval = 'C');
+		]]>
+    </select>
+    
+    <select id="selectIsSmsSendingInvestUser" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT cust_id FROM cpas_sms_history 
+			WHERE use_flag = 'J' AND cust_id = #{param1} AND request LIKE CONCAT('%', #{param2}, '%');
+		]]>
+    </select>
+    
+    <select id="selectRepaymentByLoanId" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT DISTINCT loan_id AS loanId, MIN(p_pay_date) AS payDate FROM cpas_payment_schedule WHERE p_pay_status = 'N' GROUP BY loan_id;
+		]]>
+    </select>
+    
+    <select id="selectBalanceRepayment" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT IFNULL(r_pay_amount + r_delq_amount, 0) FROM cpas_repayment_schedule crs, cpas_payment_schedule cps
+			WHERE crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count
+			AND p_pay_status = 'N' AND crs.loan_id = #{param1} LIMIT 1;
+		]]>
+    </select>
+    
+    <select id="selectNotiRepaymentUserInfo" resultType="com.crepass.restfulapi.one.domain.OneNotiRepaymentUserInfo" parameterType="string">
+	    <![CDATA[
+	        SELECT i_subject AS subject, m_id AS mid, m_name AS name FROM mari_loan WHERE i_id = #{param1};
+		]]>
+    </select>
+    
+    <select id="selectNotiRepaymentIsPossible" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT TIMESTAMPDIFF(DAY, p_pay_date, #{param2}) FROM cpas_payment_schedule WHERE loan_id = #{param1} AND p_pay_status = 'C' ORDER BY p_count DESC LIMIT 1;
+		]]>
+    </select>
+    
+<!--     SELECT email_fk AS emailFk, `from`, `to` FROM cpas_email_target -->
+<!-- 			WHERE is_sending = 'N' AND send_dt <= CURRENT_TIMESTAMP(6) -->
+<!-- 			AND email_fk = (SELECT email_fk FROM cpas_email_target WHERE is_sending = 'N' GROUP BY email_fk LIMIT 1) LIMIT 100; -->
+    
+    
+    <select id="selectSendEmailInfo" resultType="com.crepass.restfulapi.one.domain.OneSendEmailInfo" parameterType="string">
+	    <![CDATA[
+			SELECT cet.email_fk AS emailFk, cet.`from`, cet.`to` 
+			FROM cpas_email_target cet
+			WHERE cet.is_sending = 'N' AND cet.send_dt <= CURRENT_TIMESTAMP(6) 
+			AND email_fk = (SELECT email_fk FROM cpas_email_target WHERE is_sending = 'N' GROUP BY email_fk LIMIT 1) 
+			AND cet.email_fk NOT IN (SELECT email_fk FROM cpas_email_target_failed_history )
+	 		LIMIT 50;
+		]]>
+    </select>
+    
+    
+    
+    
+    <select id="selectSendEmailContents" resultType="com.crepass.restfulapi.one.domain.OneSendEmailContents" parameterType="_long">
+	    <![CDATA[
+			SELECT file_fk AS fileFk, email_title AS emailTitle, email_body AS emailBody FROM cpas_email_history WHERE seq = #{param1};
+		]]>
+    </select>
+    
+    <update id="updateSendEmailState" parameterType="com.crepass.restfulapi.one.domain.OneSendEmailInfo">
+	    <![CDATA[
+			UPDATE cpas_email_target
+			SET is_sending = 'Y', updated_dt = CURRENT_TIMESTAMP(6)
+			WHERE email_fk = #{emailFk} AND `to` = #{to} AND is_sending = 'N';
+		]]>
+    </update>
+    
+    <select id="selectEmailFileName" resultType="string" parameterType="_long">
+	    <![CDATA[
+			SELECT file_name FROM cpas_email_file WHERE seq = #{param1};
+		]]>
+    </select>
+    
+    <insert id="insertEmailHistory" parameterType="string">
+	    <![CDATA[
+			INSERT INTO cpas_email_history(seq, email_title, email_body) VALUES(#{param1}, #{param2}, #{param3});
+		]]>
+    </insert>
+    
+    
+    <insert id="insertSendEmailFail" parameterType="com.crepass.restfulapi.one.domain.OneSendEmailInfo">
+	    <![CDATA[
+			INSERT INTO cpas_email_target_failed_history (email_fk) VALUES  (#{emailFk});
+		]]>
+    </insert>
+    
+    
+<!--     <insert id="insertSendEmailFail" parameterType="com.crepass.restfulapi.one.domain.OneSendEmailInfo"> -->
+<!-- 	    <![CDATA[ -->
+<!-- 			INSERT INTO cpas_email_target_failed_history (email_fk, e_from, e_to, e_result)  -->
+<!-- 			VALUES  (#{emailFk}, #{from}, #{to}, #{result}); -->
+<!-- 		]]> -->
+<!--     </insert> -->
+    
+    
+    <insert id="insertEmailTarget" parameterType="java.util.List">
+		INSERT INTO cpas_email_target(email_fk, `from`, `to`, to_name)
+		VALUES
+		<foreach collection="list" item="item" separator=",">
+            (#{item.emailFk}, #{item.from}, #{item.to}, '관리자')
+        </foreach>
+    </insert>
+
+    <select id="selectAllUserEmailList" resultType="com.crepass.restfulapi.one.domain.OneSendEmail">
+	    <![CDATA[
+			SELECT m_id FROM mari_member;
+		]]>
+    </select>
+
+    <insert id="insertEmailReserveTarget" parameterType="com.crepass.restfulapi.one.domain.OneSendEmailInfo">
+		<![CDATA[
+		INSERT INTO cpas_email_target(email_fk, `from`, `to`, to_name, send_dt)
+		VALUES  (#{emailFk}, #{from}, #{to}, '크레파스솔루션(주)', #{send_dt})
+		]]>
+    </insert>
+
+    <insert id="insertEmailTarget2" parameterType="java.util.List">
+		INSERT INTO cpas_email_target(email_fk, `from`, `to`, to_name)
+		VALUES
+		<foreach collection="list" item="item" separator=",">
+            (#{item.emailFk}, #{item.from}, #{item.to}, (SELECT m_name FROM mari_member WHERE m_id = #{item.to}))
+        </foreach>
+    </insert>
+    
+    <select id="selectPossibleInvest" resultType="string" parameterType="string">
+	    <![CDATA[
+			SELECT i_subject FROM (SELECT CAST(IFNULL(SUM(mi.i_pay)/mi.i_loan_pay, 0) * 100 AS UNSIGNED) AS investRate, ml.i_subject FROM mari_loan ml
+			INNER JOIN mari_invest_progress mip ON mip.loan_id = ml.i_id
+			LEFT JOIN mari_invest mi ON ml.i_id = mi.loan_id
+			WHERE ml.i_loanapproval <> 'C' AND ml.i_exec_date IS NULL AND ml.i_id NOT IN (SELECT loan_id FROM mari_invest WHERE m_id = #{mid})
+			AND mip.i_look = 'Y'
+			GROUP BY ml.i_id) A
+			WHERE investRate >= 50;
+		]]>
+    </select>
+    
+    <select id="selectNewMemberEventCnt" resultType="com.crepass.restfulapi.one.domain.OneNewMemberEventCnt" parameterType="string">
+	    <![CDATA[
+			SELECT
+				(SELECT IFNULL(count(mm.m_id),0)
+				FROM mari_member mm
+				WHERE mm.m_datetime BETWEEN DATE_SUB(CURDATE(), INTERVAL + 7 DAY) AND DATE_SUB(CURDATE(), INTERVAL + 1 DAY)) AS newMemberTotal
+				,        
+				(SELECT IFNULL(count(ml.i_id),0)
+				FROM mari_loan ml 
+				WHERE ml.i_regdatetime BETWEEN DATE_SUB(CURDATE(), INTERVAL + 7 DAY) AND DATE_SUB(CURDATE(), INTERVAL + 1 DAY)) AS loanTotal
+				,
+				(SELECT IFNULL(count(ml.i_id),0)
+				FROM mari_loan ml 
+				WHERE ml.i_exec_date BETWEEN DATE_SUB(CURDATE(), INTERVAL + 7 DAY) AND DATE_SUB(CURDATE(), INTERVAL + 1 DAY)) AS loanExecTotal;
+		]]>
+    </select>
+    
+        <select id="selectLoanExcuteTotalFor7Days" resultType="com.crepass.restfulapi.one.domain.OneLoanExcuteTotal">
+	    <![CDATA[
+			SELECT crs.loan_id AS loanId, crs.r_count AS rCount, crs.r_ln_amount AS lnAmount, crs.r_interest_amount AS rInterestAmt
+			FROM mari_loan ml 
+			INNER JOIN cpas_repayment_schedule crs ON ml.i_id = crs.loan_id
+			WHERE ml.i_exec_date BETWEEN DATE_SUB(CURDATE(), INTERVAL + 7 DAY) AND DATE_SUB(CURDATE(), INTERVAL + 1 DAY)
+			ORDER BY crs.loan_id, crs.r_count;
+		]]>
+    </select>
+    
+    
+    <select id="selectDuplicationCheck" resultType="_int" parameterType="string">
+	    <![CDATA[
+			SELECT  COUNT(name)
+			FROM cpas_sms_history csh
+			WHERE name = #{param1} AND type = #{param2} AND cust_id = #{param3}
+			        AND use_flag = #{param4} AND MD5(request) = #{param5} AND LEFT(created_dt,10) = CURDATE();
+		]]>
+    </select>
+    
+    
+</mapper>

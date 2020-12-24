@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.cre.dao.InvestP2pMapper">
+
+<!--     <select id="selectSocialList" resultType="com.crepass.restfulapi.cre.domain.CreSocial"> -->
+<!--         SELECT s_id AS corpId, s_corp_name AS corpName -->
+<!--         FROM crep2p_social -->
+<!--         WHERE s_use_yn = 'Y' -->
+<!--         GROUP BY s_corp_name -->
+<!--         ORDER bY s_corp_name; -->
+<!--     </select> -->
+    
+<!--     <select id="selectSocialBannerList" resultType="com.crepass.restfulapi.cre.domain.CreSocialBanner"> -->
+<!--         SELECT s_id as id, s_corp_name as corpName, s_banner_url AS bannerUrl, s_memo AS memo, s_sort AS sort -->
+<!-- 		FROM crep2p_social -->
+<!-- 		WHERE s_use_yn = 'Y' AND s_show = 'Y' -->
+<!-- 		ORDER BY s_sort ASC; -->
+<!--     </select> -->
+
+<!-- <select id="selectP2pInvestInfo" resultType="com.crepass.restfulapi.cre.domain.CreInvestInfo" parameterType="string"> -->
+	<select id="selectP2pInvestInfo" resultType="com.crepass.restfulapi.inside.domain.InsideIPJIInfo" parameterType="string">
+	    <![CDATA[
+		SELECT  REPLACE(JSON_EXTRACT(tt.requestapi, '$.TRAN_AMT'), '"', '') AS trAmt, DATE_FORMAT(CreateDate, '%Y%m%d%H%i%S') AS paidDate, 'Wve' AS amtGbn
+		FROM tbl_Telegram tt
+		WHERE api_url LIKE '%assets/withdraw/deposit%' AND REPLACE(JSON_EXTRACT(tt.requestapi, '$.CUST_ID'), '"', '') = #{param1}
+        	AND ResultCode = '00000000'
+			AND CreateDate NOT IN (
+										SELECT CreateDate      
+										FROM tbl_Telegram tt
+										WHERE api_url LIKE '%assets/withdraw/deposit%' 
+											AND  (left(CreateDate,10)='2020-05-14' OR left(CreateDate,10)='2020-05-15')
+											AND ResultCode = '00000000'
+											AND REPLACE(JSON_EXTRACT(tt.requestapi, '$.TRAN_ACCT_NB'), '"', '')='100032726906')
+        UNION ALL
+        SELECT REPLACE(JSON_EXTRACT(tt.requestapi, '$.INV_AMT'), '"', '') AS trAmt, DATE_FORMAT(CreateDate, '%Y%m%d%H%i%S') AS paidDate, 'Ive' AS amtGbn
+		FROM tbl_Telegram tt
+		WHERE  api_url LIKE '%/api/loan/invest/add%' 
+        	AND         REPLACE(JSON_EXTRACT(tt.requestapi, '$.INV_CUST_ID'), '"', '') = #{param1}
+        	AND ResultCode = '00000000'
+        	AND REPLACE(JSON_EXTRACT(tt.requestapi, '$.LOAN_SEQ'), '"', '') NOT IN (3854);
+		
+		]]>
+    </select>
+    
+<!--     UNION ALL     -->
+<!-- 		SELECT  REPLACE(JSON_EXTRACT(tt.requestapi, '$.INV_AMT'), '"', '') AS trAmt, DATE_FORMAT(CreateDate, '%Y%m%d%H%i%S') AS paidDate , 'Ive' AS amtGbn -->
+<!-- 		FROM P2_live.tbl_Telegram tt -->
+<!-- 		WHERE API_URL = '/api/loan/invest/add' AND REPLACE(JSON_EXTRACT(tt.requestapi, '$.INV_CUST_ID'), '"', '') = #{param1} -->
+<!-- 				AND ResultCode = '00000000' AND CreateDate <> '2020-04-03 15:45:11.270' -->
+<!-- 		ORDER BY paidDate; -->
+    
+</mapper>

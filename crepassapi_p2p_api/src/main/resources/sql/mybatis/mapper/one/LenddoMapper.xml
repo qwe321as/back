@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.LenddoMapper">
+
+    <insert id="insertLenddoTrans" parameterType="com.crepass.restfulapi.one.domain.LenddoInterface">
+        <![CDATA[
+            INSERT INTO cpas_lenddo_send_status(
+                      l_send_id
+                    , l_m_id
+                    , l_step
+                    , l_status_code
+                    , l_status_desc
+                    , l_update_date
+            ) VALUES (
+                      #{sendId}
+                    , #{mid}
+                    , #{step}
+                    , #{statusCode}
+                    , #{statusDesc}
+                    , CURRENT_TIMESTAMP(6)
+            )
+        ]]>
+    </insert>
+
+	<select id="selectLenddoById" resultType="string" parameterType="string">
+        SELECT app_id AS appId FROM cpas_lenddo_send_history WHERE app_id = #{param1};
+    </select>
+
+	<insert id="insertLenddoSendHistory" parameterType="string">
+        <![CDATA[
+            INSERT INTO cpas_lenddo_send_history(app_id, m_id)
+			VALUES(#{param1}, #{param2});
+        ]]>
+    </insert>
+    
+    <insert id="insertLenddoWebhoook" parameterType="string">
+        <![CDATA[
+            INSERT INTO cpas_lenddo_webhook_stack(app_id, created_dt)
+			VALUES(#{param1}, #{param2});
+        ]]>
+    </insert>
+    
+    <delete id="deleteLenddoWebhoook" parameterType="string">
+        <![CDATA[
+            DELETE FROM cpas_lenddo_webhook_stack WHERE app_id = #{param1};
+        ]]>
+    </delete>
+    
+	<select id="selectLenddoWebhoook" resultType="com.crepass.restfulapi.one.domain.OneLenddoWebhookInfo" parameterType="string">
+        SELECT app_id, created_dt FROM cpas_lenddo_webhook_stack LIMIT 10;
+    </select>
+
+</mapper>

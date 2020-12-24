@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.cre.dao.AgreeMapper">
+
+    <insert id="insertCreAgree" parameterType="com.crepass.restfulapi.cre.domain.CreAgree">
+        <![CDATA[
+            INSERT INTO crep2p_agreed(
+                    m_id
+                    , loan_id
+                    , a_uinf_process
+                    , a_cinf_provide
+                    , a_cinf_retrieve
+                    , a_cinf_gather
+                    , a_minf_receive
+                    , a_last_update_date
+            ) VALUES (
+                    #{mid}
+                    , 0
+                    , #{uinfProcess}
+                    , #{cinfProvide}
+                    , #{cinfRetrieve}
+                    , #{cinfGather}
+                    , #{minfReceive}
+                    , CURRENT_TIMESTAMP(6)
+            )
+        ]]>
+    </insert>
+    
+    <update id="updateCreSetting" parameterType="com.crepass.restfulapi.cre.domain.CreSetting">
+        <![CDATA[
+            UPDATE crep2p_member
+            SET m_alarm = #{alarm}
+                , m_tdiary_msg = #{tdiaryMsg}
+            WHERE m_id = #{mid}
+        ]]>
+    </update>
+    
+    <insert id="insertDocument" parameterType="com.crepass.restfulapi.cre.domain.CreDocument">
+        <![CDATA[
+            INSERT INTO crep2p_document(
+                    d_doc_code
+                    , d_doc_name
+                    , d_doc_contents
+                    , a_last_update_date
+            ) VALUES (
+                    #{docCode}
+                    , #{docName}
+                    , #{docContents}
+                    , CURRENT_TIMESTAMP(6)
+            )
+        ]]>
+    </insert>
+    
+    <select id="selectDocumentById" resultType="com.crepass.restfulapi.cre.domain.CreDocument" parameterType="string">
+        SELECT d_doc_code as docCode
+                , d_doc_name as docName
+                , d_doc_contents docContents
+        FROM crep2p_document
+        where d_doc_code = #{param1}    
+    </select>    
+    
+    <insert id="insertCreLoanAgreed" parameterType="com.crepass.restfulapi.cre.domain.CreLoanAgreed">
+        <![CDATA[
+            INSERT INTO crep2p_loan_agreed(
+                    m_id
+                    , la_uinf_process
+                    , la_cinf_provide
+                    , la_cinf_retrieve
+                    , la_cinf_gather
+                    , la_minf_receive
+                    , la_linf_sms
+                    , la_linf_email
+                    , la_linf_hp
+                    , la_pinf_gather
+                    , la_uinf_gather
+                    , la_last_update_date
+            ) VALUES (
+                    #{mid}
+                    , #{uinfProcess}
+                    , #{cinfProvide}
+                    , #{cinfRetrieve}
+                    , #{cinfGather}
+                    , #{minfReceive}
+                    , #{linfSms}
+                    , #{linfEmail}
+                    , #{linfHp}
+                    , #{pinfGather}
+                    , #{uinfGather}
+                    , CURRENT_TIMESTAMP(6)
+            )
+        ]]>
+    </insert>
+    
+    <insert id="insertCreInvestAgreed" parameterType="com.crepass.restfulapi.cre.domain.CreInvestAgreed">
+        <![CDATA[
+            INSERT INTO crep2p_invest_agreed(
+                    m_id
+                    , ia_inrisk_guide
+                    , ia_pinf_gather
+                    , ia_invest_use
+                    , ia_inrisk_notice
+                    , ia_last_update_date
+            ) VALUES (
+                    #{mid}
+                    , #{inriskGuide}
+                    , #{pinfGather}
+                    , #{investUse}
+                    , #{inriskNotice}
+                    , CURRENT_TIMESTAMP(6)
+            )
+        ]]>
+    </insert>    
+    
+    <insert id="insertCreLoanAgreed2" parameterType="com.crepass.restfulapi.cre.domain.CreLoanAgreed2">
+        <![CDATA[
+            INSERT INTO crep2p_agreement_agreed(
+                    m_id, loan_id, customer_notice, loan_contract, basic_contract, main_contract, contract_condition
+                    , delay_interest, stamp_fee, interm_fee, platform_fee, broker_fee, terms_exp, cinf_provide
+            ) VALUES (
+                    #{mid}, #{loanId}, #{customerNotice}, #{loanContract}, #{basicContract}, #{mainContract}, #{contractCondition}
+                    , #{delayInterest}, #{stampFee}, #{intermFee}, #{platformFee}, #{brokerFee}, #{termsExp}, #{cinfProvide}
+            )
+        ]]>
+    </insert>
+    
+</mapper>

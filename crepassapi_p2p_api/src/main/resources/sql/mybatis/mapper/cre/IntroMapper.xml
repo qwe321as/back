@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.cre.dao.IntroMapper">
+
+	<!-- 200714 V2부터 버전별 분기처리 할예정이기 때문에, 그 이전버전은 appVersion=0.1.1으로 처리-->
+    <select id="selectIntroInfo" resultType="com.crepass.restfulapi.cre.domain.CreIntro">
+        select p_app_packg_nm as packageName
+                ,p_app_version as appVersion
+                ,p_force_update as forceUpdate
+                ,p_force_block as forceBlock
+                ,p_last_update_date as lastUpdateDate
+                , '0982beb15fb2f0c584fa5872527c58b9' as aesEncrypt
+        from crep2p_inform ci
+        WHERE p_no=1;
+    </select>
+    
+    <select id="selectIntroInfoCount" resultType="int" parameterType="string">
+        select count(p_no)
+        from crep2p_inform ci
+        WHERE p_app_version=#{param1};
+
+    </select>
+    
+    
+     <select id="selectIntroInfoV2" resultType="com.crepass.restfulapi.cre.domain.CreIntro" parameterType="string">
+        select p_app_packg_nm as packageName
+                ,p_app_version as appVersion
+                ,p_force_update as forceUpdate
+                ,p_force_block as forceBlock
+                ,p_last_update_date as lastUpdateDate
+                , '0982beb15fb2f0c584fa5872527c58b9' as aesEncrypt
+        from crep2p_inform ci
+        WHERE p_app_version=#{param1};
+
+    </select>
+    
+    
+    <insert id="insertIntroApp" parameterType="com.crepass.restfulapi.cre.domain.CreIntro">
+        <![CDATA[
+        INSERT INTO crep2p_inform(
+                p_app_packg_nm
+                , p_app_version
+                , p_force_update
+                , p_force_block
+                , p_note
+                , p_last_update_date
+        ) VALUES (
+                #{packageName}
+                , #{appVersion}
+                , #{forceUpdate}
+                , #{forceBlock}
+                , #{note}
+                , CURRENT_TIMESTAMP(6)
+        )
+        ]]>
+    </insert>
+    
+     <insert id="insertIntroAppV2" parameterType="string">
+        <![CDATA[
+        	INSERT INTO crep2p_inform (`p_app_packg_nm`, `p_app_version`, `p_live_flag`) VALUES ('com.crepass.p2p', #{param1}, #{param2});
+        ]]>
+    </insert>
+    
+    <select id="selectNewAppVersion" resultType="string">
+    <![CDATA[
+        SELECT MAX(p_app_version) AS newAppVersion
+		FROM crep2p_inform
+		WHERE p_live_flag = 'Y';
+		]]>
+    </select>
+    
+    
+</mapper>

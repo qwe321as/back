@@ -1,0 +1,731 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.ScheMapper">
+    
+    <select id="selectDepositById" resultType="com.crepass.restfulapi.inside.domain.InsideDeposit" parameterType="string">
+        SELECT cust_id as custId, acct_nb as accntNb, erp_trans_dt as erpTransDt
+		FROM cpas_deposit_trx
+		ORDER BY erp_trans_dt DESC
+		LIMIT 1;
+    </select>
+    
+	<!-- 타행입금 -->
+    <insert id="insertDeposit" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_deposit_trx(cust_id, acct_nb, tr_amt, type_flag, erp_trans_dt)
+            VALUES (#{custId}, #{accntNb}, #{trAmt}, #{trAmtGbn}, #{erpTransDt})
+        ]]>
+    </insert>
+    
+    <insert id="insertDeposit2" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_deposit_trx(cust_id, acct_nb, tr_amt, type_flag, erp_trans_dt, batch_flag)
+            VALUES (#{custId}, #{accntNb}, #{trAmt}, #{trAmtGbn}, #{erpTransDt}, 'S')
+        ]]>
+    </insert>
+    
+    <select id="selectDepositScheduleById" resultType="com.crepass.restfulapi.inside.domain.InsideDepositInfo2" parameterType="string">
+        SELECT id, cust_id as custId, acct_nb as accntNb, tr_amt as trAmt, erp_trans_dt as erpTransDt, type_flag as typeFlag
+		FROM cpas_deposit_trx
+		WHERE batch_flag = 'N';
+    </select>
+    
+    <select id="selectCustUserId" resultType="string" parameterType="string">
+        SELECT m_id
+		FROM mari_member
+		WHERE m_cust_id = #{param1};
+    </select>
+    
+    <insert id="insertDepositHistory" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_trx_log(m_id, trx_type, trx_amt, type_flag, loan_id, t_count)
+            VALUES (#{param1}, #{param2}, #{param3}, #{param4}, #{param5}, #{param6});
+        ]]>
+    </insert>
+    
+    <update id="updateDepositSchedule" parameterType="string">
+            <![CDATA[
+                UPDATE cpas_deposit_trx
+                SET batch_flag = #{param2}
+                WHERE id = #{param1}
+            ]]>
+    </update>
+    
+    <select id="selectRepaymentList" resultType="com.crepass.restfulapi.one.domain.OneRepayment" parameterType="string">
+        SELECT mo.o_id as oId, mo.loan_id as loanId, mm.m_cust_id as custId, mm.m_id as mid, mo.o_ln_money_to as lnMoneyTo
+		, mo.o_investamount as investAmount, mo.o_amount as amount, mo.o_saletotalamount as saleToTotalAmount, mo.o_interest as interest
+		, iv.invest_proof_no as prinRcvNo
+		FROM mari_order mo
+		LEFT JOIN mari_member mm
+		ON mo.sale_id = mm.m_id
+		LEFT JOIN mari_invest iv
+		ON iv.loan_id = mo.loan_id AND iv.m_id = mm.m_id
+		WHERE mo.o_repayment_status = 'N'
+		AND mo.o_status = '입금완료';
+    </select>
+    
+    <select id="selectHolidayCalendar" resultType="com.crepass.restfulapi.one.domain.OneHolidayCalendar" parameterType="string">
+        SELECT h_date as Hdate, h_lunar as Hlunar
+		FROM cpas_holiday_calendar;
+    </select>
+    
+    <select id="selectRepayScheduleInfo" resultType="com.crepass.restfulapi.one.domain.OneRepayScheduleInfo" parameterType="string">
+        SELECT ml.i_id as loanId, ml.m_id as mid, ml.i_loan_pay as loanPay, ml.i_loan_day as loanDay
+		, ml.i_year_plus as yearPlus, ml.i_repay as repayInfo, ml.i_repay_day as repayDay, ml.i_exec_date as execDate, ml.ca_id AS loanCate
+		FROM mari_invest_progress mip
+		LEFT JOIN mari_loan ml
+		ON mip.loan_id = ml.i_id
+   		WHERE ml.loan_step4 = 'Y'
+		AND mip.i_exec_repaybatch = 'N';
+    </select>
+    
+    <insert id="insertRepaySchedule" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_repayment_schedule(loan_id, r_count, r_repay_date, r_pay_amount, r_ln_amount, r_interest_amount, r_balance)
+            VALUES (#{loanId}, #{repayCount}, #{repayDate}, #{payAmount}, #{lnAmount}, #{interestAmount}, #{balance});
+        ]]>
+    </insert>
+    
+    <update id="updateRepayScheduleState" parameterType="string">
+            <![CDATA[
+                UPDATE mari_invest_progress
+                SET i_exec_repaybatch = 'Y'
+                WHERE loan_id = #{param1}
+            ]]>
+    </update>
+    
+    <select id="selectPaymentInvestSchedule" resultType="com.crepass.restfulapi.one.domain.OnePaymentInvestSchedule" parameterType="string">
+		SELECT mi.m_id AS mid, mi.i_loan_pay AS loanPay, mi.i_pay AS pay, mi.i_regdatetime as regdatetime, mm.m_level AS level, mm.m_service AS service
+		FROM mari_invest mi, mari_member mm
+		WHERE loan_id = #{param1} AND mm.m_id = mi.m_id	
+		ORDER BY mm.m_id;
+    </select>
+    
+    <insert id="insertPaymentSchedule" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_payment_schedule(m_id, loan_id, p_count, p_pay_date, p_pay_gubun, p_pay_status
+	        , p_ln_amount, p_interest_amount, p_delq_amount, p_tax, p_tax_local, p_fee, p_pay_amount)
+            VALUES (#{mid}, #{loanId}, #{repayCount}, #{payDate}, #{payGubun}, #{payStatus}
+            , #{lnAmount}, #{interestAmount}, #{delqAmount}, #{tax}, #{taxLocal}, #{fee}, #{payAmount});
+        ]]>
+    </insert>
+    
+    <select id="selectPaymentScheduleStart" resultType="com.crepass.restfulapi.one.domain.OnePaymentSchedule" parameterType="string">
+        SELECT mo.o_id as oid, cps.p_id as pid, cps.m_id as mid, cps.loan_id as loanId, cps.p_count as repayCount, cps.p_pay_date as payDate, cps.p_pay_gubun as payGubun, cps.p_pay_status as payStatus
+	        , cps.p_ln_amount as lnAmount, cps.p_interest_amount as interestAmount, cps.p_delq_amount as delqAmount, cps.p_tax as tax, cps.p_tax_local as taxLocal, cps.p_fee as fee, cps.p_pay_amount as payAmount
+	        , ml.i_loan_pay as loanPay, ml.i_loan_day as loanDay
+		FROM mari_order mo
+		LEFT JOIN cpas_payment_schedule cps
+		ON mo.loan_id = cps.loan_id
+		RIGHT JOIN mari_loan ml
+		ON ml.i_id = cps.loan_id
+        AND mo.sale_id = cps.m_id
+		WHERE mo.o_repayment_status = 'N'
+        AND mo.o_count = cps.p_count
+		AND cps.m_id IS NOT NULL
+		ORDER BY mo.loan_id, mo.o_count, cps.m_id;
+    </select>
+    
+    <select id="selectPrincipalNum" resultType="string" parameterType="string">
+        SELECT invest_proof_no
+		FROM mari_invest
+		WHERE loan_id = #{param2}
+		AND m_id = #{param1};
+    </select>
+    
+    <update id="updateOrderSchedule" parameterType="string">
+            <![CDATA[
+                UPDATE mari_order
+                SET o_repayment_status = 'P', o_collectiondate = CURRENT_TIMESTAMP(6)
+                WHERE o_id = #{param1}
+                AND o_repayment_status = 'N'
+            ]]>
+    </update>
+    
+    <update id="updateOrderScheduleFinish" parameterType="string">
+	    <![CDATA[
+	        UPDATE mari_order
+	        SET o_repayment_status = 'Y'
+	        WHERE sale_id = #{param1} AND loan_id = #{param2} AND o_count = #{param3} 
+	        AND o_repayment_status = 'P'
+	    ]]>
+    </update>
+    
+    <update id="updatePaymentSchedule" parameterType="string">
+            <![CDATA[
+                UPDATE cpas_payment_schedule
+                SET p_pay_status = 'C', update_date = CURRENT_TIMESTAMP(6)
+                WHERE p_id = #{param1}
+                AND p_pay_status = 'N'
+            ]]>
+    </update>
+    
+    <delete id="deleteCertifyWebDumpAll" parameterType="string">
+	    <![CDATA[
+	        DELETE FROM cpae_certify_web_dump
+			WHERE TIMESTAMPDIFF(HOUR, create_date, CURRENT_TIMESTAMP()) > 0;
+		]]>
+    </delete>
+    
+    <select id="selectInvestAutoDivision" resultType="com.crepass.restfulapi.one.domain.OneInvestAutoDivision" parameterType="string">
+    	<![CDATA[
+			SELECT DISTINCT a_id as aid, m_id as mid, a_onoff as isActivate, a_limit_loan as limitLoan, a_limit_month as limitMonth,
+			 a_univ_name as univName, a_agreed_yn as agreedYN
+			FROM cpas_invest_auto TAB1
+			WHERE a_onoff = 'A'
+            AND a_id = (SELECT a_id FROM cpas_invest_auto WHERE m_id = TAB1.m_id ORDER BY a_update_date DESC LIMIT 1)
+            
+            ORDER BY limitLoan DESC;
+        ]]>
+    </select>
+    
+    <select id="selectInvestAutoPossible" resultType="string" parameterType="string">
+    	<![CDATA[
+				SELECT ml.i_id as loanId FROM mari_loan ml
+				LEFT JOIN mari_invest mi ON ml.i_id = mi.loan_id
+				LEFT JOIN mari_invest_progress mip ON mip.loan_id = ml.i_id
+				
+				WHERE mip.i_look = 'Y' AND ml.i_loanapproval <> 'C' AND i_exec_date IS NULL AND ml.i_id NOT IN (SELECT loan_id FROM mari_invest WHERE m_id = #{param1})
+				AND ml.ca_id NOT IN ('cate08')
+				GROUP BY ml.i_id
+				ORDER BY IFNULL(SUM(mi.i_pay), 0) ASC, CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject, 3),'호)',1) AS UNSIGNED) DESC;
+        ]]>
+    </select>
+    
+<!--     selectInvestAutoPossible 에서 관심목록 포함안되도 투자 가능하게끔 조건 지움 200423 -->
+<!-- RIGHT JOIN cpas_loan_category clc ON clc.loan_id = ml.i_id -->
+<!--     AND (clc.category_id IN (SELECT category_id FROM cpas_invest_category WHERE a_id=#{param2}) AND ml.i_businessname like CONCAT('%', #{param3}, '%')) -->
+    
+    <select id="selectInvestAutoTotalPayment" resultType="string" parameterType="string">
+    	<![CDATA[
+			SELECT SUM(mi.i_pay)
+			FROM mari_invest mi
+			RIGHT JOIN mari_loan ml ON ml.i_id = mi.loan_id
+			WHERE mi.invest_auto = 'Y'
+			AND mi.m_id = #{param1} AND ml.i_loanapproval <> 'C'
+            AND mi.i_regdatetime LIKE CONCAT('', DATE_FORMAT(CURRENT_TIME, '%Y-%m'), '%');
+        ]]>
+    </select>
+    
+    <select id="selectLoanIdByMid" resultType="string" parameterType="string">
+    	<![CDATA[
+			SELECT m_id FROM mari_loan WHERE i_id = #{param1};
+        ]]>
+    </select>
+    
+    
+    <select id="selectRepayWithdraw" resultType="com.crepass.restfulapi.one.domain.OneWithdraw" parameterType="string">
+    	<![CDATA[
+			SELECT loan_id as loanId, t_id as tid
+	        FROM cpas_withdraw_trx
+	        WHERE type_flag = 'L' AND trx_flag = 'N' 
+            ORDER by loan_id
+            LIMIT 1;
+        ]]>
+    </select>
+    
+    <update id="updateRepayWithdrawState" parameterType="string">
+            <![CDATA[
+                UPDATE cpas_withdraw_trx
+                SET trx_flag = 'S', updated_date = CURRENT_TIMESTAMP(6)
+                WHERE t_id = #{param1}
+                AND type_flag = 'L' AND trx_flag = 'N';
+            ]]>
+    </update>
+    
+    <update id="updateRepayWithdrawState2" parameterType="string">
+            <![CDATA[
+                UPDATE cpas_withdraw_trx
+                SET trx_flag = 'S', updated_date = CURRENT_TIMESTAMP(6)
+                WHERE t_id = #{param1}
+                AND type_flag = 'L' AND trx_flag = 'N';
+            ]]>
+    </update>
+    
+    <select id="selectPayScheduleWithdraw" resultType="string" parameterType="string">
+    	<![CDATA[
+			SELECT DISTINCT ms.s_accntNo
+			FROM mari_order mo
+			LEFT JOIN cpas_payment_schedule cps
+			ON cps.loan_id = mo.loan_id
+			AND cps.p_count = (SELECT o_count FROM mari_order WHERE loan_id = #{param1} ORDER BY o_count DESC LIMIT 1)
+			LEFT JOIN mari_seyfert ms
+			ON ms.m_id = cps.m_id
+			LEFT JOIN mari_member mm
+			ON mm.m_id = ms.m_id
+			WHERE mo.loan_id = #{param1} AND mm.m_cust_id = #{param2};
+        ]]>
+    </select>
+    
+    <select id="selectLoanAccntReturn" resultType="com.crepass.restfulapi.one.domain.OneLoanAccntReturn" parameterType="string">
+    	<![CDATA[
+			SELECT loan_id AS loanId, accntNo
+			FROM cpas_loan_accnt_lift
+			WHERE batch_flag = 'N'
+			AND TIMESTAMPDIFF(DAY, created_date, #{param1}) >= 1;
+        ]]>
+    </select>
+    
+    <update id="updateAccntITW" parameterType="string">
+        <![CDATA[
+            UPDATE virtual_account
+			SET is_use = 'E'
+			WHERE account = #{param1};
+        ]]>
+    </update>
+    
+    <update id="updateLoanAccntReturn" parameterType="string">
+        <![CDATA[
+			UPDATE cpas_loan_accnt_lift
+			SET batch_flag = 'Y', updated_date = CURRENT_TIMESTAMP(6)
+			WHERE loan_id = #{param1};
+        ]]>
+    </update>
+    
+    <select id="selectPrePaymentScheduleStart" resultType="com.crepass.restfulapi.one.domain.OnePrePaymentSchedule" parameterType="string">
+        SELECT p_id AS pid, m_id AS mid, loan_id AS loanId, p_interest AS interest, p_fee AS fee
+        , p_tax AS tax, p_tax_local AS taxLocal, p_pay_amount AS payAmount
+        , (SELECT i_loan_pay FROM mari_loan WHERE i_id = loan_id) AS loanPay
+        FROM cpas_prepayment_provide WHERE p_status = 'N';
+    </select>
+    
+    <update id="updatePrePaymentSchedule" parameterType="string">
+	    <![CDATA[
+	        UPDATE cpas_prepayment_provide
+	        SET p_status = 'S', update_date = CURRENT_TIMESTAMP(6)
+	        WHERE p_id = #{param1}
+	        AND p_status = 'N';
+	    ]]>
+    </update>
+    
+    <select id="selectRepayCount" resultType="string" parameterType="string">
+        SELECT MAX(p_count) FROM cpas_payment_schedule 
+		WHERE loan_id = #{param1} AND p_pay_status = 'C'
+		AND loan_id NOT IN (SELECT loan_id FROM cpas_prepayment WHERE loan_id = #{param1});
+    </select>
+    
+    <select id="selectRepayCount2" resultType="string" parameterType="string">
+        SELECT p_count FROM cpas_payment_schedule WHERE loan_id = #{param1} AND m_id = #{param2} AND p_pay_amount = #{param3} AND p_pay_status = 'C' ORDER BY p_count DESC LIMIT 1;
+    </select>
+    
+    <select id="selectRepayCount3" resultType="string" parameterType="string">
+        SELECT DISTINCT o_count FROM mari_order WHERE loan_id = #{param1} AND sale_id = #{param2} AND o_repayment_status = 'P' ORDER BY o_count ASC LIMIT 1;
+    </select>
+
+	<select id="selectStartInvestUserInfo" resultType="com.crepass.restfulapi.one.domain.OneStartInvestUserInfo" parameterType="string">
+        SELECT mi.m_id AS mid, mm.m_cust_id AS custId, mi.m_name AS name, mi.i_pay AS investPay, mi.i_subject AS subject
+		, CAST(AES_DECRYPT(FROM_BASE64(mm.m_hp),'0982beb15fb2f0c584fa5872527c58b9', '0982beb15fb2f0c5') AS CHAR) AS hp
+		FROM mari_invest mi, mari_member mm WHERE mm.m_id = mi.m_id AND mi.loan_id = #{param1};
+    </select>
+    
+<!--     200513 운영팀 요청으로 90이내에 대한 조건 삭제 및 파산관련 정보 제외조건 추가 -->
+<!-- 			AND TIMESTAMPDIFF(DAY, coh.start_dt, CURRENT_TIMESTAMP(6)) < 90) -->
+    <select id="selectLoanStateOverduePayment" resultType="string" parameterType="string">
+	    <![CDATA[
+		SELECT IFNULL(sum(overDue.r_ln_amount),0)
+		FROM (SELECT DISTINCT crs.loan_id, crs.r_count, crs.r_ln_amount, crs.r_delq_amount, ml.i_subject AS i_subject
+				FROM cpas_repayment_schedule crs
+				LEFT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+				inner join mari_loan ml on ml.i_id = crs.loan_id
+				WHERE crs.loan_id IN (SELECT DISTINCT coh.loan_id
+										FROM cpas_repayment_schedule crs, cpas_payment_schedule cps, cpas_overdue_history coh
+										WHERE cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+										AND cps.p_pay_status = 'N' AND crs.r_delq_state > 0
+										AND coh.loan_id = crs.loan_id AND coh.count = crs.r_count
+										AND TIMESTAMPDIFF(DAY, coh.start_dt, CURRENT_TIMESTAMP(6)) >= 30
+										AND ml.i_look NOT IN  ('R','B','S'))
+				AND cps.p_pay_status = 'N') overDue;
+		]]>
+    </select>
+    
+	<!-- 매각채권에 대한 상환하지 않은 원금의 합  -->
+    <select id="selectLoanSoldInformation" resultType="string" parameterType="string">
+	    <![CDATA[
+	SELECT sum(r_ln_amount)
+        FROM cpas_repayment_schedule crs
+		INNER JOIN
+		    (SELECT  loan_id, p_count, p_pay_status, p_pay_date
+		    FROM cpas_payment_schedule cps
+		    WHERE loan_id IN (SELECT i_id FROM mari_loan ml
+										WHERE ml.i_look IN ('R', 'B', 'S'))
+		    GROUP BY loan_id , p_count , p_pay_status , p_pay_date) cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+		WHERE crs.loan_id IN (SELECT i_id FROM mari_loan ml
+										WHERE ml.i_look IN ('R', 'B', 'S'))
+		AND cps.p_pay_status='N';
+		]]>
+    </select>
+    
+    
+    
+    <select id="selectLoanStateDefaultPayment" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT IFNULL(SUM(overDue.r_ln_amount), 0)
+			FROM (SELECT DISTINCT crs.loan_id, crs.r_count, crs.r_ln_amount, crs.r_delq_amount
+			FROM cpas_repayment_schedule crs
+			LEFT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+			WHERE crs.loan_id IN (SELECT DISTINCT coh.loan_id
+			FROM cpas_repayment_schedule crs, cpas_payment_schedule cps, cpas_overdue_history coh
+			WHERE cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+			AND cps.p_pay_status = 'N' AND crs.r_delq_state > 0
+			AND coh.loan_id = crs.loan_id AND coh.count = crs.r_count
+			AND TIMESTAMPDIFF(DAY, coh.start_dt, CURRENT_TIMESTAMP(6)) >= 90)
+			AND crs.r_delq_state > 0
+			AND cps.p_pay_status = 'N') overDue;
+		]]>
+    </select>
+    
+	<!-- 200513운영팀 요청으로 매각채권제외 조건 추가 -->
+    <select id="selectLoanStateTotalPayment" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT SUM(tot.r_ln_amount) 
+			FROM
+				(SELECT DISTINCT crs.loan_id, r_count, r_ln_amount FROM cpas_repayment_schedule crs
+				LEFT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+				WHERE cps.p_pay_status = 'N' AND crs.loan_id NOT IN (SELECT i_id FROM mari_loan ml
+																		WHERE ml.i_look IN ('R' , 'B', 'S'))
+            ) tot; 
+		]]>
+    </select>
+    
+    <select id="selectLoanStateTotalPayment2" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT SUM(ml.i_loan_pay) FROM mari_loan ml, mari_invest_progress mip
+			WHERE ml.loan_step4 = 'Y' AND mip.loan_id = ml.i_id AND ml.i_id NOT IN (1, 29) AND ml.i_loanapproval = 'Y'
+		]]>
+    </select>
+    
+    <select id="selectLoanStateTotalRepayment" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT IFNULL(SUM(cps.p_ln_amount), 0) + IFNULL(SUM(cps.p_interest_amount), 0) + IFNULL(SUM(r_delq_amount), 0) 
+	        + (SELECT IFNULL(SUM(p_pay_amount), 0) + IFNULL(SUM(p_tax), 0) + IFNULL(SUM(p_tax_local), 0) + IFNULL(SUM(p_delq_amount), 0) FROM cpas_prepayment_provide) 
+			FROM cpas_repayment_schedule crs
+			LEFT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+			WHERE cps.p_pay_status = 'C';
+		]]>
+    </select>
+    
+    <select id="selectLoanStateTotalBalance" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT IFNULL(SUM(cps.p_ln_amount), 0) + IFNULL(SUM(cps.p_interest_amount), 0) + IFNULL(SUM(r_delq_amount), 0)
+			FROM cpas_repayment_schedule crs
+			LEFT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+			WHERE cps.p_pay_status = 'N';
+		]]>
+    </select>
+    
+    <insert id="insertLoanStatus" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_loan_status(tot_loan_amt, tot_repay_amt, tot_balance_amt, avg_prof_rate, overdue_rate, default_rate)
+			VALUES(#{param1}, #{param2}, #{param3}, #{param4}, #{param5}, #{param6});
+        ]]>
+    </insert>
+    
+    <select id="selectOverdueByLoanId" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT DISTINCT crs.loan_id FROM cpas_repayment_schedule crs
+			LEFT JOIN cpas_payment_schedule cps ON crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count
+			WHERE cps.p_pay_status = 'N' AND crs.r_delq_state > 0;
+		]]>
+    </select>
+    
+    <select id="selectTotalRepayment" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT SUM(crs.r_pay_amount + crs.r_delq_amount) FROM cpas_repayment_schedule crs
+			WHERE crs.loan_id = #{param1}
+			AND crs.r_count IN (SELECT DISTINCT p_count FROM cpas_payment_schedule WHERE p_pay_status = 'C' AND loan_id = crs.loan_id);
+		]]>
+    </select>
+    
+    <select id="selectOverdueRepaymentList" resultType="com.crepass.restfulapi.one.domain.OneOverdueRepaymentItem" parameterType="string">
+	    <![CDATA[
+	        SELECT DISTINCT crs.r_count AS count, crs.r_pay_amount + crs.r_delq_amount AS payAmount, cps.p_pay_date AS payDate
+			, (SELECT DISTINCT p_pay_date FROM cpas_payment_schedule WHERE loan_id = crs.loan_id AND p_count = crs.r_count - 1) AS prevPayDate
+			FROM cpas_repayment_schedule crs
+			LEFT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+			WHERE crs.loan_id = #{param1}
+			AND crs.r_count IN (SELECT DISTINCT p_count FROM cpas_payment_schedule WHERE p_pay_status = 'N' AND loan_id = crs.loan_id AND p_pay_date <= #{param2});
+		]]>
+    </select>
+    
+    <select id="selectOverdueByValues" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT overdue FROM cpas_overdue_payment WHERE loan_id = #{param1} ORDER BY created_date DESC LIMIT 1;
+		]]>
+    </select>
+    
+    <insert id="insertOverduePayment" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_overdue_payment(loan_id, overdue, repayment)
+			VALUES(#{param1}, #{param2}, #{param3});
+        ]]>
+    </insert>
+    
+    <select id="selectTotalLoanPay" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT SUM(i_loan_pay) FROM mari_loan WHERE loan_step4 = 'Y' AND i_id NOT IN (1, 29);
+		]]>
+    </select>
+    
+    <select id="selectLoanStateTotalPrincipal" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT IFNULL(SUM(cps.p_ln_amount), 0)
+			+ (SELECT (IFNULL(SUM(p_pay_amount), 0) - IFNULL(SUM(p_interest), 0)) + IFNULL(SUM(p_tax), 0) + IFNULL(SUM(p_tax_local), 0) + IFNULL(SUM(p_fee), 0)
+			 FROM cpas_prepayment_provide WHERE loan_id NOT IN (1, 29)) 
+			FROM cpas_repayment_schedule crs
+			LEFT JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+			WHERE cps.p_pay_status = 'C' AND crs.loan_id NOT IN (1, 29);
+		]]>
+    </select>
+    
+    <select id="selectDeposiRecentCancelDate" resultType="string" parameterType="string">
+    	<![CDATA[
+			SELECT IFNULL((SELECT tr_org_date FROM cpas_deposit_cancel_history ORDER BY tr_org_date DESC LIMIT 1), DATE_FORMAT('1900-01-01', '%Y%m%d'));
+        ]]>
+    </select>
+    
+    <insert id="insertDepositCancelHistory" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_deposit_cancel_history(cust_id, acct_nb, tr_org_date, tr_org_seq, tr_amt, tr_nb, type_flag)
+			VALUES(#{custId}, #{acctNb}, #{trOrgDate}, #{trOrgSeq}, #{trAmt}, #{trNb}, #{typeFlag});
+        ]]>
+    </insert>
+    
+    <select id="selectCheckDepositCancelData" resultType="string" parameterType="string">
+    	<![CDATA[
+			SELECT cust_id FROM cpas_deposit_cancel_history WHERE tr_org_date = #{param1} AND tr_org_seq = #{param2} AND tr_nb = #{param3};
+        ]]>
+    </select>
+    
+    <select id="selectRateInfo" resultType="com.crepass.restfulapi.one.domain.OneRateInfo" parameterType="string">
+    	<![CDATA[
+			SELECT tax, tax_local AS taxLocal, fee FROM cpas_rate_management WHERE is_use = 'Y' AND level = #{param1} AND serviceType = #{param2} AND repayType = #{param3};
+        ]]>
+    </select>
+    
+    <select id="selectInvestRate" resultType="string" parameterType="string">
+    	<![CDATA[
+			SELECT IFNULL(CAST((SUM(i_pay)/i_loan_pay) * 100 AS UNSIGNED), 0) FROM mari_invest WHERE loan_id = #{loanId};
+        ]]>
+    </select>
+    
+    <update id="updateRepayComplete">
+	    <![CDATA[
+	        UPDATE mari_invest_progress
+		    SET i_look = 'F'
+		    WHERE loan_id IN (SELECT cps.loan_id FROM cpas_payment_schedule cps, mari_loan ml
+								WHERE ml.i_id = cps.loan_id AND cps.p_count = ml.i_loan_day AND cps.p_pay_status <> 'N' GROUP BY cps.loan_id) AND i_look <> 'F';
+	    ]]>
+    </update>
+    
+        
+    <select id="selectInvestBundle" resultType="com.crepass.restfulapi.v2.domain.InvestBundleItem2" parameterType="string">
+    	<![CDATA[
+			SELECT loan_id AS loanId, m_id AS mid, i_pay AS iPay FROM cpas_invest_stack WHERE is_batch = 'N';
+        ]]>
+    </select>
+    
+    <update id="updateInvestStackState" parameterType="string">
+	    <![CDATA[
+	        UPDATE cpas_invest_stack
+			SET is_batch = #{isBatch}, batch_msg = #{msg}
+			WHERE loan_id = #{loanId} AND m_id = #{mid};
+	    ]]>
+    </update>
+         
+    <select id="selectOverdueNumberOfCount" resultType="com.crepass.restfulapi.one.domain.OneOverdueNumberOfCount"  parameterType="string">
+    	<![CDATA[
+		SELECT crs.loan_id AS loanId, crs.r_count AS rCount,
+		(SELECT min(r_count) FROM cpas_repayment_schedule WHERE crs.loan_id = loan_id) AS minCount, cps.m_id as mid
+		FROM cpas_payment_schedule cps
+		INNER JOIN cpas_repayment_schedule crs ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+		WHERE crs.r_delq_state > 0 AND cps.p_pay_status = 'N' AND cps.loan_id = #{loanId} AND cps.m_id=#{mid};
+        ]]>
+    </select>
+    
+    <select id="selectPreFeeInfo" resultType="_long"  parameterType="string">
+    	<![CDATA[
+		SELECT sum(p_ln_amount) AS lnAmount
+		FROM cpas_payment_schedule cps
+		WHERE p_pay_status = 'N' AND cps.loan_id = #{loanId}
+		        AND cps.m_id = #{mid}
+		        AND p_count >= #{minCount};
+        ]]>
+    </select>
+    
+    <select id="selectAllPaymentInfo" resultType="string" parameterType="string">
+    	<![CDATA[
+		select distinct cps.loan_id as loanId
+		from cpas_payment_schedule cps
+		where p_pay_status='N'
+		
+		ORDER BY cps.loan_id		;
+        ]]>
+    </select>
+    
+    <select id="selectPaymentInfo" resultType="com.crepass.restfulapi.one.domain.OnePaymentNewSchedule" parameterType="string">
+    	<![CDATA[
+		select cps.m_id as mid, cps.loan_id as loanId, p_count as repayCount, p_pay_date as payDate, p_ln_amount as lnAmount,
+		p_interest_amount as interestAmount, p_delq_amount as delqAmount, p_tax as tax, p_tax_local as taxLocal, p_fee as fee
+         , mi.i_pay / mi.i_loan_pay as loanRate, ml.i_repay_day AS repayDay, ml.i_exec_date AS execDate
+		from cpas_payment_schedule cps
+           inner join mari_invest mi on cps.loan_id = mi.loan_id and cps.m_id = mi.m_id
+           INNER JOIN mari_loan ml ON cps.loan_id = ml.i_id
+		where p_pay_status='N' and cps.loan_id = #{param1} and cps.m_id = #{param2};
+        ]]>
+    </select>
+    
+     <select id="selectNewFeeInfo" resultType="_long"  parameterType="string">
+    	<![CDATA[
+		select sum(p_ln_amount) as lnAmount
+		from cpas_payment_schedule cps
+		where p_pay_status='N' and cps.loan_id = #{param1} and cps.m_id = #{param2} and cps.p_count >= #{param3};
+        ]]>
+    </select>
+            
+    <update id="updateNewFeeInfo" parameterType="com.crepass.restfulapi.one.domain.OnePaymentNewInfo">
+            <![CDATA[
+                UPDATE cpas_payment_schedule
+                SET p_fee = #{fee}
+                WHERE loan_id = #{loanId} and p_count = #{repayCount} and m_id = #{mid} 
+            ]]>
+    </update>
+    
+    
+<!--     	WHERE loan_id between 2001 and 2001 -->
+     <select id="selectAllPaymentFeeInfo" resultType="com.crepass.restfulapi.one.domain.OnePaymentFeeInfo" >
+    	<![CDATA[
+		SELECT m_id AS mid, loan_id AS loanId, p_count AS pCount, p_pay_status AS pStatus, 
+			p_ln_amount AS lnAmount, p_fee AS fee, cps.p_pay_date AS payDate
+		FROM cpas_payment_schedule cps 
+		ORDER BY loan_id , m_id , p_count;
+        ]]>
+    </select>
+    
+<!--     테스트입니다 -->
+<!--     테스트입니다 -->
+<!--     테스트입니다 -->
+    <select id="selectRepayScheduleInfoTest" resultType="com.crepass.restfulapi.one.domain.OneRepayScheduleInfo" parameterType="string">
+        <![CDATA[
+	        SELECT ml.i_id as loanId, ml.m_id as mid, ml.i_loan_pay as loanPay, ml.i_loan_day as loanDay
+				, ml.i_year_plus as yearPlus, ml.i_repay as repayInfo, ml.i_repay_day as repayDay, ml.i_exec_date as execDate, ml.ca_id AS loanCate
+			FROM mari_invest_progress mip
+			LEFT JOIN mari_loan ml
+			ON mip.loan_id = ml.i_id
+	   		WHERE ml.i_id=#{param1};
+    	]]>
+    </select>
+    
+    <!--     테스트입니다 -->
+	<!--     세금, 지방세 검증배치용 포함 -->
+    <select id="selectRepayScheduleInfoTestAll" resultType="com.crepass.restfulapi.one.domain.OneRepayScheduleInfo">
+        <![CDATA[
+	       SELECT ml.i_id as loanId, ml.m_id as mid, ml.i_loan_pay as loanPay, ml.i_loan_day as loanDay
+				, ml.i_year_plus as yearPlus, ml.i_repay as repayInfo, ml.i_repay_day as repayDay, ml.i_exec_date as execDate, ml.ca_id AS loanCate
+			FROM mari_invest_progress mip
+			LEFT JOIN mari_loan ml
+			ON mip.loan_id = ml.i_id
+			WHERE ml.i_exec_date IS NOT NULL
+			AND mip.loan_id IN (select distinct loan_id from cpas_payment_schedule where p_pay_status='N')
+			ORDER BY loan_id
+    	]]>
+    </select>
+
+
+
+<!-- 	        SELECT ml.i_id as loanId, ml.m_id as mid, ml.i_loan_pay as loanPay, ml.i_loan_day as loanDay -->
+<!-- 				, ml.i_year_plus as yearPlus, ml.i_repay as repayInfo, ml.i_repay_day as repayDay, ml.i_exec_date as execDate, ml.ca_id AS loanCate -->
+<!-- 			FROM mari_invest_progress mip -->
+<!-- 			LEFT JOIN mari_loan ml -->
+<!-- 			ON mip.loan_id = ml.i_id -->
+<!-- 			WHERE ml.i_exec_date IS NOT NULL -->
+<!-- 			AND mip.loan_id > 2000 -->
+<!-- 			ORDER BY loan_id -->
+			
+
+    <select id="selectInvestAccntInform" resultType="com.crepass.restfulapi.one.domain.OneInvestAccountInform" parameterType="string">
+        <![CDATA[
+		SELECT  ms.m_name AS sName, ms.s_accntNo AS accntNo, ms.m_id AS sid,
+		    mm.m_name AS mName, mm.m_id AS mid, mm.m_cust_id AS custId
+		FROM mari_seyfert ms
+		inner JOIN mari_member mm ON ms.m_id = mm.m_id
+		WHERE ms.s_accntNo NOT IN ('')
+		ORDER BY ms.s_accntNo
+    	]]>
+    </select>
+    
+    <select id="selectForAWeekSumDW" resultType="_long" parameterType="string" >
+        <![CDATA[
+		SELECT  IFNULL(SUM(IF(trx_type = 'D', trx_amt, 0)),0) - IFNULL(SUM(IF(trx_type = 'W', trx_amt, 0)),0)
+		FROM cpas_trx_log
+		WHERE DATE_FORMAT(LEFT(created_date, 10), '%Y%m%d') BETWEEN DATE_FORMAT(CURDATE() - INTERVAL 7 DAY, '%Y%m%d') AND DATE_FORMAT(CURDATE() - INTERVAL 1 DAY, '%Y%m%d')
+		        AND m_id = #{param1};
+    	]]>
+    </select>
+    
+        
+    <select id="selectAllInvestorsList" resultType="string" >
+    	<![CDATA[
+			SELECT DISTINCT m_id
+			FROM mari_invest
+			WHERE m_id NOT IN (SELECT DISTINCT m_id FROM mari_loan)
+			ORDER BY m_id;
+        ]]>
+    </select>
+    
+    <select id="selectLastCountRepaymentDate" resultType="string" parameterType="string" >
+        <![CDATA[
+			SELECT (SELECT DISTINCT p_pay_date FROM cpas_payment_schedule WHERE p_count = crs.r_count -1 AND loan_id = crs.loan_id) AS nextDate
+			FROM cpas_repayment_schedule crs
+			WHERE crs.r_count NOT IN (SELECT o_count FROM mari_order WHERE loan_id = crs.loan_id)
+		     AND crs.loan_id = #{param1} AND r_count=#{param2}
+    	]]>
+    </select>
+    
+    
+    <select id="selectNumberOfOrderCount" resultType="int" parameterType="string" >
+        <![CDATA[
+			SELECT IFNULL(count(cps.loan_id),0) FROM cpas_payment_schedule cps WHERE cps.loan_id = #{param1} AND cps.p_count = #{param2}
+    	]]>
+    </select>
+        
+    <select id="selectNumberOfPaymentCount" resultType="int" parameterType="string" >
+        <![CDATA[
+			SELECT IFNULL(count(mo.loan_id),0) FROM mari_order mo WHERE mo.loan_id = #{param1} AND mo.o_count = #{param2}
+    	]]>
+    </select>
+    
+    <insert id="insertViewStatus" parameterType="string">
+    	<![CDATA[
+	       INSERT INTO cpas_view_status (m_id, invest_list_time, invest_tran_time, loan_cond_time) VALUES (#{param1}, #{param2}, #{param2}, #{param2});
+        ]]>
+    </insert>
+        
+	<select id="selectInvestListCheckTime" resultType="string"  parameterType="string">
+    	<![CDATA[
+			SELECT invest_list_time AS investCheckTime
+			FROM cpas_view_status
+			WHERE m_id = #{mid};
+        ]]>
+    </select>
+    
+        
+	<select id="selectInvestTranCheckTime" resultType="string"  parameterType="string">
+    	<![CDATA[
+			SELECT invest_tran_time AS tranCheckTime
+			FROM cpas_view_status
+			WHERE m_id = #{mid};
+        ]]>
+    </select>
+    
+            
+	<select id="selectInvestCondCheckTime" resultType="string"  parameterType="string">
+    	<![CDATA[
+			SELECT loan_cond_time AS loanCondTime
+			FROM cpas_view_status
+            WHERE m_id = #{mid}
+        ]]>
+    </select>
+    
+</mapper>

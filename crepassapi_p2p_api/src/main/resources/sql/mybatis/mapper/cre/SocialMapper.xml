@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.cre.dao.SocialMapper">
+
+    <select id="selectSocialList" resultType="com.crepass.restfulapi.cre.domain.CreSocial">
+        SELECT s_id AS corpId, s_corp_name AS corpName
+        FROM crep2p_social
+        WHERE s_use_yn = 'Y'
+        GROUP BY s_corp_name
+        ORDER bY s_corp_name;
+    </select>
+    
+    <select id="selectSocialBannerList" resultType="com.crepass.restfulapi.cre.domain.CreSocialBanner">
+        SELECT s_id as id, s_corp_name as corpName, s_banner_url AS bannerUrl, s_memo AS memo, s_sort AS sort
+		FROM crep2p_social
+		WHERE s_use_yn = 'Y' AND s_show = 'Y'
+		ORDER BY s_sort ASC;
+    </select>
+</mapper>

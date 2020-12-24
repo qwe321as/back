@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.SlideMapper">
+
+    <select id="selectWlastById" resultType="com.crepass.restfulapi.one.domain.OneSlide" parameterType="string">
+        select m_emoney as trAmt
+		  , (select max(w_last) from mari_write WHERE w_table = 'notice' order by w_datetime desc limit 1) as wLastDateTime
+		  , (select max(c_loan_contract_url) from mari_config) as contractUrl
+		  , (select max(c_invest_receipt_url) from mari_config) as receiptUrl
+		  , ifnull((select i_loanapproval from mari_loan where m_id = #{param1} and i_loanapproval = 'E'), 'N') as loanapproval
+		from mari_member 
+		where m_id = #{param1}
+    </select>
+
+	<!-- API2 START -->
+    
+    <select id="selectSlideInfo" resultType="com.crepass.restfulapi.v2.domain.SlideInfo" parameterType="string">
+        SELECT m_id AS mid, m_name AS mname, m_level AS mlevel, m_profile AS mProfile
+		, mm.m_emoney AS trxInvestAmt
+		, (SELECT IFNULL((SELECT SUM(trx_amt) FROM cpas_trx_log WHERE m_id = mm.m_id AND type_flag = 'L' AND trx_type = 'D')
+		- IFNULL((SELECT SUM(trx_amt) FROM cpas_trx_log WHERE m_id = mm.m_id AND type_flag = 'L' AND trx_type = 'W'), 0), 0))  AS trxLoanAmt
+		, m_companynum as companyNum, m_tester AS isTester
+		FROM mari_member mm WHERE m_id = #{param1};
+    </select>
+    
+<!--             SELECT event_code, event_name, event_description, event_img_url, event_contents, event_discount,  -->
+<!--         	event_discount_month, is_use, event_start_dt, event_end_dt, created_dt, -->
+<!--         	is_show, e_target_flag AS targetFlag, e_main_flag AS mainFlag -->
+<!-- 		FROM cpas_event_list WHERE e_target_flag= #{param1} -->
+<!--         AND e_target_flag='Y' -->
+<!--         ORDER BY created_dt DESC LIMIT 1; -->
+    
+</mapper>

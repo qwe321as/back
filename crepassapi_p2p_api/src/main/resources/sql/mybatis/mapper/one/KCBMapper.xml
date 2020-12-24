@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.KCBMapper">
+
+    <select id="selectByCutomerInfo" resultType="com.crepass.restfulapi.one.domain.OneCustomerInfo" parameterType="string">
+        SELECT m_cust_id AS custId, m_name AS name, m_birth AS birth, m_sex AS sex
+        , CAST(aes_decrypt(from_base64(m_hp),'0982beb15fb2f0c584fa5872527c58b9', '0982beb15fb2f0c5') AS CHAR) AS hp, CURRENT_DATE() AS applyDate
+		FROM mari_member
+		WHERE m_id = #{param1};
+    </select>
+    
+    <insert id="insertCertifyKCB" parameterType="string">
+    	<![CDATA[		
+			INSERT INTO cpas_certify_kcb(cust_id, apply_key)
+			VALUES (#{param1}, #{param2});
+        ]]>
+    </insert>
+    
+    <update id="updateCertifyKCBFlag" parameterType="String">
+		<![CDATA[
+			UPDATE cpas_certify_kcb
+			SET updated_date = CURRENT_TIMESTAMP(6)
+			WHERE apply_key = #{param1};
+		]]>
+	</update>
+	
+	<select id="selectCreditKCBInfo" resultType="com.crepass.restfulapi.one.domain.OneCreditInfo" parameterType="string">
+		<![CDATA[
+		SELECT A.cuscrdt_seq AS kcbCuscrdtSeq, MAX(A.score) AS kcbScore, MAX(A.grade) AS kcbGrade
+		FROM
+		    (SELECT  t1.cuscrdt_seq,
+		            CASE WHEN t1.fild_cd = 'assc' THEN t1.val END AS score,
+		            CASE WHEN t1.fild_cd = 'grde' THEN t1.val END AS grade
+		      FROM kcb.tcuscrdtdtl t1
+		      WHERE cuscrdt_seq = (SELECT  seq
+											FROM kcb.tcuscrdt
+											WHERE cus_no = #{param1}
+											ORDER BY seq DESC
+											LIMIT 1)
+						AND fild_cd IN ('assc' , 'grde')) A
+		GROUP BY A.cuscrdt_seq;
+                        
+        	]]>
+    </select>
+	
+	<select id="selectCreditCrepassInfo" resultType="com.crepass.restfulapi.one.domain.OneCreditInfo" parameterType="string">
+		<![CDATA[
+		SELECT kcbScore, lenndoScore, cssScore, creDecision, ai.mid AS mid
+		FROM
+			(SELECT 
+			KCB_SCORE AS kcbScore,
+			LENDDO_SCORE AS lenndoScore,
+		    M_ID AS mid
+			 FROM vr_db.vr_as_input
+					WHERE m_id = #{param1}
+					ORDER BY seq_no DESC LIMIT 1
+			) ai
+		INNER JOIN 
+			(SELECT 
+			as_score AS cssScore, decision_yn AS creDecision, m_id AS mid
+					FROM vr_db.vr_as_output
+					WHERE m_id = #{param1}
+					ORDER BY seq_no DESC LIMIT 1
+			) ao ON ai.mid = ao.mid
+				;           
+        	]]>
+    </select>
+</mapper>

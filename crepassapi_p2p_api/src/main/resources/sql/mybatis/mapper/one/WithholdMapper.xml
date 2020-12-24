@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.WithholdMapper">
+
+    <select id="selectWithholdById" resultType="com.crepass.restfulapi.one.domain.OneWithhold" parameterType="string">
+        SELECT m_with_zip as withZip
+                , m_with_addr1 as withAddress1
+                , m_with_addr2 as withAddress2
+        FROM mari_member
+        WHERE m_id = #{mid}
+    </select>
+    
+    <select id="selectAccountById" resultType="com.crepass.restfulapi.one.domain.OneWithholdAccount" parameterType="string">
+        SELECT m_my_bankacc as myBankacc
+                , m_my_bankname as myBankname
+                , m_my_bankcode as myBankcode
+        FROM mari_member  
+        WHERE m_id = #{mid}
+    </select>
+    
+    <update id="updateWithdrawAccnt">
+            <![CDATA[
+                UPDATE mari_member
+                SET m_my_bankcode = #{param2}
+                    , m_my_bankname = #{param3}
+                    , m_my_bankacc = #{param4}
+                WHERE m_id = #{param1}
+            ]]>
+    </update>
+    
+    <update id="updateWithholdingInfo">
+	    <![CDATA[
+	        UPDATE mari_member
+			SET m_reginum = #{param2}, m_with_zip = #{param3}, m_with_addr1 = #{param4}, m_with_addr2 = #{param5}
+			WHERE m_id = #{param1};
+	    ]]>
+    </update>
+    
+    <!-- API V2 START -->
+    <update id="updateWithholdingInfo2">
+	    <![CDATA[
+	        UPDATE mari_member
+			SET m_reginum = #{reginum}
+			WHERE m_id = #{mid};
+	    ]]>
+    </update>
+    
+    <select id="selectWithholdByInfo" resultType="string" parameterType="string">
+        SELECT m_reginum FROM mari_member WHERE m_id = #{mid}
+    </select>
+</mapper>

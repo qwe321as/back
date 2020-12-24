@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.inside.dao.DepositMapper">
+
+    <select id="selectDepositInfo" resultType="com.crepass.restfulapi.inside.domain.InsideDepositInfo" parameterType="com.crepass.restfulapi.inside.domain.InsideDeposit">
+    	SELECT CUST_ID as custId, ACCT_NB as accntNb, TR_AMT as trAmt, ERP_TRANS_DT as erpTransDt
+		FROM IB_FB_P2P_IP
+		WHERE CUST_ID = #{custId}
+		AND ACCT_NB = #{accntNb}
+		AND ERP_TRANS_DT > #{erpTransDt};
+    </select>
+    
+    <select id="selectDepositInfo2" resultType="com.crepass.restfulapi.inside.domain.InsideDepositInfo" parameterType="string">
+    	SELECT CUST_ID as custId, ACCT_NB as accntNb, TR_AMT as trAmt, ERP_TRANS_DT as erpTransDt, TR_AMT_GBN as trAmtGbn
+		FROM IB_FB_P2P_IP
+		WHERE ERP_TRANS_DT > '';
+    </select>
+
+	<select id="selectDepositInfo3" resultType="com.crepass.restfulapi.inside.domain.InsideDepositInfo" parameterType="string">
+    	SELECT CUST_ID as custId, ACCT_NB as accntNb, TR_AMT as trAmt, ERP_TRANS_DT as erpTransDt, TR_AMT_GBN as trAmtGbn
+		FROM IB_FB_P2P_IP
+		WHERE ERP_TRANS_DT > #{param1};
+    </select>
+    
+    <select id="selectLoanPayment" resultType="string" parameterType="string">
+    	SELECT DC_NB
+    	FROM IB_FB_P2P_DC_IP
+    	WHERE EXEC_YN = 'Y'
+    	AND ERP_TRANS_DT > #{param1} AND ERR_CD = '00000000';
+    </select>
+    
+    <select id="selectRepaymentInfo" resultType="com.crepass.restfulapi.inside.domain.OneRepaymentInfo" parameterType="string">
+    	SELECT rd.TR_AMT AS trAmt, rd.TR_AMT_P AS trAmtP,rr.TRAN_DATE AS tranDate, rr.TRAN_TIME AS tranTime, rd.CUST_ID AS custID
+		FROM IB_FB_P2P_REPAY_REQ rr
+		LEFT JOIN IB_FB_P2P_REPAY_REQ_DETAIL rd
+		ON rd.SDATE = rr.SDATE AND rd.REG_SEQ = rr.REG_SEQ
+		WHERE rr.EXEC_STATUS = '02' AND rd.DC_NB = #{param1} AND rr.TRAN_DATE = #{param2} AND rr.RESP_CODE = '00000000';
+    </select>
+    
+    <select id="selectRepaymentDepositList" resultType="com.crepass.restfulapi.inside.domain.InsideDepositInfo" parameterType="string">
+    	SELECT CUST_ID as custId, ACCT_NB as accntNb, TR_AMT as trAmt, ERP_TRANS_DT as erpTransDt
+    	FROM IB_FB_P2P_IP
+    	WHERE ACCT_NB = #{param1} AND TR_AMT_GBN = '20' ORDER BY SR_DATE ASC;
+    </select>
+    
+    <select id="selectRepaymentDuplicateInfo" resultType="string" parameterType="string">
+    	SELECT SEQ FROM IB_FB_P2P_REPAY_REQ_DETAIL
+    	WHERE DC_NB = #{param1} AND CUST_ID = #{param2} AND TR_AMT = #{param3} AND CTAX_AMT = #{param4} AND FEE = #{param5} AND RESP_CODE = '00000000';
+    </select>
+
+	<select id="selectRepaymentTotalDepositAmt" resultType="_long" parameterType="string">
+    	SELECT IFNULL(SUM(TR_AMT), 0) AS sumTrAmt FROM IB_FB_P2P_IP WHERE TR_AMT_GBN = '20' AND ACCT_NB = #{param1}
+    </select>
+    
+    <select id="selectInvestTotalDepositAmt" resultType="_long" parameterType="string">
+    	SELECT IFNULL(SUM(TR_AMT), 0) AS sumTrAmt 
+		FROM insidebank_live.IB_FB_P2P_IP 
+		WHERE TR_AMT_GBN = '10' AND CUST_ID = #{param1}
+    </select>
+    
+    
+<!--     AND SR_DATE NOT IN (select date_format(now(),'%Y%m%d')) -->
+<!--       	AND SR_DATE NOT IN ('20200626');   -->
+    
+    <select id="selectRepaymentTotalDepositAmt_exceptToday" resultType="_long" parameterType="string">
+    	SELECT IFNULL(SUM(TR_AMT), 0) AS sumTrAmt FROM IB_FB_P2P_IP WHERE TR_AMT_GBN = '20' AND ACCT_NB = #{param1}
+    	AND SR_DATE NOT IN (select date_format(now(),'%Y%m%d'))
+    	
+    </select>
+
+    
+    <select id="selectRepaymentListDepositAmt" resultType="com.crepass.restfulapi.inside.domain.OneRepaymentDepositInfo" parameterType="string">
+    	SELECT TR_AMT AS trAmt, DATE_FORMAT(ERP_TRANS_DT, '%Y-%m-%d') AS erpTransDt FROM IB_FB_P2P_IP WHERE TR_AMT_GBN = '20' AND ACCT_NB = #{param1};
+    </select>
+    
+    
+<!-- 	    	SELECT SDATE AS sDate, STIME AS sTime, REG_SEQ AS regSeq, EXEC_STATUS AS execStatus -->
+<!-- 	    	, TOTAL_TR_AMT AS totalTrAmt, TOTAL_CTAX_AMT AS totalCtaxAmt, TOTAL_FEE AS totalFee -->
+<!-- 	    	FROM IB_FB_P2P_REPAY_REQ -->
+<!-- 			WHERE CONCAT(SDATE, STIME) NOT IN ('20181106165812', '20190211192132', '20190504085959', '20181108162639', '20190216160000', '20190217160000', '20190601090003', '20191104160030', '20191105090030') -->
+<!-- 			AND EXEC_STATUS <> 02; -->
+    
+    <select id="selectRepaymentException" resultType="com.crepass.restfulapi.inside.domain.OneRepaymentException" parameterType="string">
+	    <![CDATA[
+	      	SELECT  SDATE AS sDate, STIME AS sTime, REG_SEQ AS regSeq, EXEC_STATUS AS execStatus
+	    	, TOTAL_TR_AMT AS totalTrAmt, TOTAL_CTAX_AMT AS totalCtaxAmt, TOTAL_FEE AS totalFee,  rq.*
+	    	FROM IB_FB_P2P_REPAY_REQ rq
+            WHERE SDATE = date_format(curdate(),'%Y%m%d')
+			AND RESP_CODE<>'00000000'
+		]]>
+    </select>
+    
+    
+<!-- 	    	SELECT SDATE AS sDate, STIME AS sTime, REG_SEQ AS regSeq, EXEC_STATUS AS execStatus -->
+<!-- 	    	, TOTAL_TR_AMT AS totalTrAmt, TOTAL_CTAX_AMT AS totalCtaxAmt, TOTAL_FEE AS totalFee -->
+<!-- 	    	FROM IB_FB_P2P_REPAY_REQ -->
+<!-- 			WHERE SDATE = CURRENT_DATE() AND EXEC_STATUS = 02; -->
+
+    <select id="selectRepaymentSuccess" resultType="com.crepass.restfulapi.inside.domain.OneRepaymentException" parameterType="string">
+	    <![CDATA[
+	    SELECT SDATE AS sDate, STIME AS sTime, REG_SEQ AS regSeq, EXEC_STATUS AS execStatus
+	    	, TOTAL_TR_AMT AS totalTrAmt, TOTAL_CTAX_AMT AS totalCtaxAmt, TOTAL_FEE AS totalFee
+	    	FROM IB_FB_P2P_REPAY_REQ
+			WHERE SDATE = date_format(curdate(),'%Y%m%d')
+			AND RESP_CODE='00000000';
+		]]>
+    </select>
+    
+    <select id="selectTotalDepositPay" resultType="string" parameterType="string">
+	    <![CDATA[
+	    	SELECT IFNULL(SUM(TR_AMT), 0) FROM IB_FB_P2P_IP WHERE CUST_ID = #{param1};
+		]]>
+    </select>
+    
+    <select id="selectDepositCancel" resultType="com.crepass.restfulapi.inside.domain.OneInsideDepositCancel" parameterType="string">
+	    <![CDATA[
+	    	SELECT CUST_ID AS custId, ACCT_NB AS acctNb, TR_ORG_DATE AS trOrgDate, TR_ORG_SEQ AS trOrgSeq, TR_AMT AS trAmt, TR_NB AS trNb, TR_AMT_GBN AS trAmtGbn
+	    	, IF(TR_AMT_GBN = '10', 'I', IF(TR_AMT_GBN = '20', 'L', 'N')) AS typeFlag
+	    	FROM IB_FB_P2P_IP_CANCEL WHERE DATE_FORMAT(TR_ORG_DATE, '%Y-%m-%d') >= DATE_FORMAT(#{param1}, '%Y-%m-%d');
+		]]>
+    </select>
+    
+    
+	<!-- 20200511 중복으로 3번 더 출금되어져서 돌려받음 : SDATE : 20200511-->
+	<!-- 20200519 중복으로 1번 더 출금되어져서 돌려받음  -->
+    <select id="selectInsideIPJIInfo" resultType="com.crepass.restfulapi.inside.domain.InsideIPJIInfo" parameterType="string">
+	    <![CDATA[
+	    	SELECT 
+			    LEFT(ERP_TRANS_DT, 14) AS paidDate, CUST_ID AS custId, TR_AMT AS trAmt,
+			    IF(TR_AMT_GBN='10', 'Iip' ,(IF(TR_AMT_GBN='20', 'Lip', NULL))) AS amtGbn,
+			    ACCT_NB AS accNb, NULL AS loanId,
+			    NULL AS trAmtP, NULL AS taxAmt, NULL AS fee, NULL AS receiptNb
+			FROM IB_FB_P2P_IP ip
+			WHERE cust_id = #{param1}
+			UNION ALL SELECT  LEFT(CONCAT(JI_DATE, JI_TIME), 14) AS paidDate,
+			    CUST_ID AS custId, TR_AMT AS trAmt, 'Iji' AS amtGbn,
+			    NULL AS accNb, DC_NB AS loanId, TR_AMT_P AS trAmtP,
+			    CTAX_AMT AS taxAmt, FEE AS fee, REPAY_RECEIPT_NB AS receiptNb
+			FROM IB_FB_P2P_REPAY_REQ_DETAIL ji
+			WHERE
+			    cust_id = #{param1} AND RESP_CODE = '00000000'
+			    AND (SDATE, REG_SEQ) NOT IN ( 
+					SELECT SDATE, REG_SEQ FROM IB_FB_P2P_REPAY_REQ_DETAIL WHERE SDATE='20200511' AND REG_SEQ IN (02, 03, 05))
+                AND (SDATE, REG_SEQ) NOT IN ( 
+					SELECT SDATE, REG_SEQ FROM IB_FB_P2P_REPAY_REQ_DETAIL WHERE SDATE='20200519' AND REG_SEQ IN (02))
+			ORDER BY paidDate;	
+		]]>
+    </select>
+    
+        <select id="selectPaidTillTodayInside" resultType="double" parameterType="string">
+	    <![CDATA[
+	    	SELECT IFNULL(sum(TR_AMT),0) as trAmt
+	    	FROM IB_FB_P2P_IP ip
+	    	WHERE ACCT_NB = #{param1} AND TR_AMT_GBN = '20';
+		]]>
+    </select>
+    
+    <select id="selectPrincipalRequestInfo" resultType="_int" parameterType="string">
+	    <![CDATA[
+	    	 SELECT count(DC_NB)
+			FROM IB_FB_P2P_REPAY_REQ_DETAIL rd
+			WHERE
+			 SDATE = #{param1}
+		        AND CUST_ID = #{param2}
+		        AND TR_AMT = #{param3}
+		        AND DC_NB = #{param4}
+					ORDER BY DC_NB , REPAY_RECEIPT_NB, CUST_ID;
+		 
+		]]>
+    </select>
+    
+</mapper>

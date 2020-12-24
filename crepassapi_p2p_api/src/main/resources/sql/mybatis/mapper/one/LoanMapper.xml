@@ -1,0 +1,725 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.LoanMapper">
+
+    <select id="selectLoanCustInfo" resultType="com.crepass.restfulapi.one.domain.OneLoanCustInfo" parameterType="string">
+        SELECT ml.i_id as loanId, ml.m_id as mid, ml.m_name as name, ml.i_loan_pay as loanPay
+		, cast(aes_decrypt(from_base64(mm.m_hp), #{param1}, #{param2}) as char) as hp
+		, mm.m_birth as birth, mm.m_my_bankcode as myBankcode, mm.m_my_bankacc as myBankacc, mm.m_cust_id as custId
+		, ml.i_subject as subject, ml.i_loanAccntNo as loanAccntNo, ml.ca_id AS loanCate
+		FROM mari_loan ml
+		RIGHT JOIN mari_member mm
+		ON ml.m_id = mm.m_id
+		WHERE ml.i_loanapproval = 'Y'
+		AND ml.loan_step4 = 'N';
+    </select>
+    
+    <select id="selectLoanCustInfoTest" resultType="com.crepass.restfulapi.one.domain.OneLoanCustInfo" parameterType="string">
+        SELECT ml.i_id as loanId, ml.m_id as mid, ml.m_name as name, ml.i_loan_pay as loanPay
+		, cast(aes_decrypt(from_base64(mm.m_hp), #{param1}, #{param2}) as char) as hp
+		, mm.m_birth as birth, mm.m_my_bankcode as myBankcode, mm.m_my_bankacc as myBankacc, mm.m_cust_id as custId
+		, ml.i_subject as subject, ml.i_loanAccntNo as loanAccntNo, IF(i_id=29, 'cate05', 'cate08') AS loanCate
+		FROM mari_loan ml
+		RIGHT JOIN mari_member mm
+		ON ml.m_id = mm.m_id
+		WHERE ml.i_loanapproval = 'Y'
+		order by ml.i_id;
+    </select>
+    
+    <select id="selectLoanPaymentIsOK" resultType="boolean" parameterType="string">
+        SELECT IF(ml.i_loan_pay = IFNULL(SUM(mi.i_pay),0), true, false)
+		FROM mari_loan ml
+		RIGHT JOIN mari_invest mi
+		ON ml.i_id = mi.loan_id
+		WHERE ml.i_id = #{param1};
+    </select>
+
+	<select id="selectLoanVirAccntInfo" resultType="com.crepass.restfulapi.one.domain.OneLoanVirAccntInfo" parameterType="string">
+        SELECT s_accntNo as accntNo, s_loanAccntNo as loanAccntNo
+		FROM mari_seyfert
+		WHERE m_id = #{param1};
+    </select>
+    
+    <select id="selectLoanAddInvestInfo" resultType="com.crepass.restfulapi.one.domain.OneLoanAddInvestInfo" parameterType="string">
+        SELECT mm.m_cust_id as custId, mm.m_id as mid, mi.i_pay as pay, mi.i_subject as subject
+		FROM mari_member mm
+		RIGHT JOIN mari_invest mi
+		ON mm.m_id = mi.m_id
+		RIGHT JOIN mari_seyfert ms
+		ON mm.m_id = ms.m_id
+		WHERE mi.loan_id = #{param1};
+    </select>
+    
+    <insert id="insertLoanHistory" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO mari_seyfert_order(s_refId, m_id, m_name, s_subject, loan_id, s_amount, s_date
+									        , s_loanamount, o_count, s_tid, s_payuse, s_type, s_release
+											, o_orderuse, o_bankaccuse, o_funding_cancel, o_canceldate
+											, trnsctnTp, trnsctnSt)
+                values (#{gCode}, #{mid}, #{mName}, #{subject}, #{loanId}, #{iPay}, CURRENT_TIMESTAMP(6)
+		                , 0, 0, '', 'N', '1', 'N'
+						, 'Y', 'N', 'N', '0000-00-00'
+						, '', '')
+        ]]>
+    </insert>
+    
+	<!-- 200713부터 i_loanexecutiondate 적용 -->
+    <update id="updateLoanState" parameterType="string">
+		<![CDATA[
+			UPDATE mari_loan
+			SET i_exec_date = DATE_FORMAT(CURRENT_DATE(), '%Y-%m-%d'), loan_step4 = 'S'
+			WHERE i_id = #{param1} 
+		]]>
+	</update>
+	
+	<update id="updateLoanState2" parameterType="string">
+		<![CDATA[
+			UPDATE mari_loan
+			SET loan_step4 = 'Y', i_loanexecutiondate = now()
+			WHERE i_id = #{param1} AND loan_step4 = 'S';
+		]]>
+	</update>
+	
+    <select id="selectLoanRecentId" resultType="string" parameterType="string">
+    	SELECT i_id
+    	FROM mari_loan
+    	WHERE m_id = #{param1}
+    	ORDER BY i_id DESC LIMIT 1;
+    </select>
+    
+    <insert id="insertLoanCategory" parameterType="string">
+    	<![CDATA[		
+			INSERT INTO cpas_loan_add_info(loan_id, goal, social_corp, corp_start_dt, corp_end_dt, last_update_dt)
+			VALUES (#{loanId },  #{goal }, #{socialCorp }, #{corpStartDt }, #{corpEndDt }, current_timestamp(6));
+        ]]>
+    </insert>
+    
+    <insert id="insertLoanCategoryInfo" parameterType="string">
+    	<![CDATA[		
+			INSERT INTO cpas_loan_category(loan_id, category_id)
+			VALUES (#{param1}, #{param2});
+        ]]>
+    </insert>
+    
+    <select id="selectLoanInvestInfoDetail" resultType="com.crepass.restfulapi.one.domain.OneLoanInvestInfoDetail" parameterType="string">
+    	SELECT ml.i_birth as birth, ml.i_businessname as businessname, ml.i_occu as occu, ml.graduated
+		, clai.social_corp as socialCorp, clai.corp_start_dt as corpStartDt, clai.corp_end_dt as corpEndDt
+		, clai.goal, ml.i_loan_pose as loanPose, ml.i_plan as plan, ml.i_sex as gender
+		FROM mari_loan ml
+		LEFT JOIN cpas_loan_add_info clai
+		ON ml.i_id = clai.loan_id
+		LEFT JOIN cpas_loan_category clc
+		ON clai.loan_id = clc.loan_id
+		WHERE ml.i_id = #{param1}
+		GROUP BY ml.i_id;
+    </select>
+    
+    <select id="selectLoanInvestInfoDetailReply" resultType="com.crepass.restfulapi.one.domain.OneLoanInvestInfoDetailReply" parameterType="string">
+		SELECT clm.id, clm.memo, clm.created_dt as createDt, IFNULL(clh.heart, 0) as heart
+		FROM cpas_loan_memo clm
+		LEFT JOIN cpas_loan_heart clh
+		ON clm.id = clh.memo_id
+		AND clh.m_id = #{param2}
+		WHERE clm.loan_id = #{param1}
+		ORDER BY clm.id DESC;
+    </select>
+    
+    <select id="selectElementByLonId" resultType="string" parameterType="string">
+    	SELECT loan_id
+		FROM mari_order
+		WHERE o_id = #{param1};
+    </select>
+    
+    <select id="selectIsCommentRow" resultType="string" parameterType="string">
+    	SELECT id
+		FROM cpas_loan_memo
+		WHERE loan_id = #{param1}
+		AND o_id = #{param2};
+    </select>
+    
+    <insert id="insertLoanMemo" parameterType="string">
+    	<![CDATA[
+			INSERT INTO cpas_loan_memo(loan_id, o_id, memo, created_dt, last_update_dt)
+			VALUES (#{loanId}, #{oId}, #{memo}, CURRENT_DATE(), CURRENT_TIMESTAMP(6));
+        ]]>
+    </insert>
+    
+    <update id="updateLoanMemo" parameterType="string">
+		<![CDATA[
+			UPDATE cpas_loan_memo
+			SET memo = #{param2},
+			last_update_dt = CURRENT_TIMESTAMP(6)
+			WHERE id = #{param1};
+		]]>
+	</update>
+	
+	<select id="selectLoanMemo" resultType="com.crepass.restfulapi.one.domain.OneLoanMemoInfo" parameterType="string">
+    	SELECT id, memo, created_dt as createDt
+		FROM cpas_loan_memo
+		WHERE o_id = #{param1};
+    </select>
+    
+    <select id="selectLoanHeart" resultType="com.crepass.restfulapi.one.domain.OneLoanMemoHeart" parameterType="string">
+		<![CDATA[
+			SELECT clh.m_id as mid, clh.heart, mm.m_name as name
+			FROM cpas_loan_memo clm
+			LEFT JOIN cpas_loan_heart clh
+			ON clm.id = clh.memo_id
+			LEFT JOIN mari_member mm
+			ON clh.m_id = mm.m_id
+			WHERE clm.o_id = #{param1}
+			AND (clh.m_id IS NOT NULL AND clh.heart IS NOT NULL)
+			ORDER BY clm.id DESC;
+		]]>
+    </select>
+    
+    <select id="selectLoanHeartInfo" resultType="string" parameterType="string">
+	    SELECT memo_id
+		FROM cpas_loan_heart
+		WHERE memo_id = #{param1}
+		AND m_id = #{param2};
+    </select>
+    
+    <insert id="insertLoanHeart" parameterType="string">
+    	<![CDATA[
+			INSERT INTO cpas_loan_heart(memo_id, loan_id, m_id, heart, last_update_dt)
+			VALUES (#{memoId}, #{loanId}, #{mid}, #{heart}, CURRENT_TIMESTAMP(6));
+        ]]>
+    </insert>
+    
+    <update id="updateLoanHeart" parameterType="string">
+		<![CDATA[
+			UPDATE cpas_loan_heart
+			SET heart = #{param3}, last_update_dt = CURRENT_TIMESTAMP(6)
+			WHERE memo_id = #{param1} and m_id = #{param2};
+		]]>
+	</update>
+	
+	<update id="updateLoanAccnt" parameterType="string">
+            <![CDATA[
+                UPDATE mari_loan
+				SET i_loanAccntNo = #{param2}
+				WHERE i_id = #{param1}
+            ]]>
+    </update>
+    
+    <update id="updateMemberLoanUse" parameterType="string">
+            <![CDATA[
+                UPDATE mari_seyfert
+                SET s_memuse = 'Y'
+                WHERE m_id = #{param1}
+            ]]>
+    </update>
+	
+	<select id="selectCustTelecomConfirm" resultType="string" parameterType="string">
+		SELECT m_no as mno
+		FROM mari_member
+		WHERE m_id = #{mid}
+		AND m_hp = #{hp}
+		AND m_name = #{name}
+		AND m_newsagency = #{newsagency};
+    </select>
+    <select id="selectLoanConfirm" resultType="string" parameterType="string">
+		SELECT IFNULL(i_loanapproval, 'P')
+		FROM mari_loan
+		WHERE m_id = #{mid}
+		ORDER BY i_regdatetime desc
+		LIMIT 1;
+    </select>
+    
+    <select id="selectLoanContract" resultType="com.crepass.restfulapi.one.domain.OneLoanContract" parameterType="string">
+		SELECT ml.i_id as loanId, ml.m_name as name, ml.i_birth as birth, ml.i_home_address as address, ml.m_hp as hp, mm.m_bankname as bankName, mm.m_my_bankacc as bankAccnt
+		, ml.i_repay_day as repayDay, ml.i_repay as repay, ml.i_loan_pay as loanPay, ml.i_year_plus as yearPlus, (SELECT i_overint FROM mari_inset) as overDue
+		FROM mari_loan ml
+		LEFT JOIN mari_member mm
+		ON ml.m_id = mm.m_id
+		WHERE ml.m_id = #{param1}
+		AND ml.i_loanapproval = 'E';
+    </select>
+	
+	<update id="updateLoanContractFlag" parameterType="string">
+            <![CDATA[
+                UPDATE mari_loan
+				SET i_loanapproval = #{param2}
+				WHERE i_id = #{param1}
+            ]]>
+    </update>
+	
+	<select id="selectLoanRepaymentSchedule" resultType="com.crepass.restfulapi.one.domain.OneLoanRepaymentSchedule" parameterType="string">
+		SELECT crs.r_count as count, crs.r_pay_amount as payAmount, crs.r_ln_amount as lnAmount, crs.r_interest_amount as interestAmount
+		, crs.r_balance as balance, crs.r_repay_date as repayDate, ml.i_loanAccntNo as loanAccntNo
+		FROM cpas_repayment_schedule crs
+        LEFT JOIN mari_loan ml
+        ON ml.i_id = crs.loan_id
+		WHERE crs.loan_id = #{param1}
+		ORDER BY crs.r_count ASC;
+    </select>
+    
+    <select id="selectLoanRepaymentSchedule2" resultType="com.crepass.restfulapi.one.domain.OneLoanRepaymentSchedule2" parameterType="string">
+		SELECT mo.o_id as oid, mo.o_subject as subject, DATE_FORMAT(mo.o_collectiondate, '%Y-%m-%d') as collectiondate, mo.o_count as count, mo.o_repayment_status as repaymentStatus, (cp.p_interest + cp.p_overdue + cp.p_prepay + cp.p_balance) as payAmount
+		FROM mari_order mo
+		INNER JOIN cpas_prepayment cp
+		ON cp.loan_id = mo.loan_id AND cp.p_count = mo.o_count
+		LEFT JOIN cpas_repayment_schedule crs
+		ON mo.loan_id = crs.loan_id
+		WHERE user_id = #{param1}
+		GROUP BY mo.o_count, mo.loan_id
+		UNION
+		SELECT mo.o_id as oid, mo.o_subject as subject, DATE_FORMAT(mo.o_collectiondate, '%Y-%m-%d') as collectiondate, mo.o_count as count, mo.o_repayment_status as repaymentStatus, crs.r_pay_amount as payAmount
+		FROM mari_order mo
+		INNER JOIN cpas_payment_schedule cps
+		ON cps.loan_id = mo.loan_id AND cps.p_count = mo.o_count
+		LEFT JOIN cpas_repayment_schedule crs
+		ON mo.loan_id = crs.loan_id
+		WHERE user_id = #{param1} AND cps.p_pay_status = 'C'
+		GROUP BY mo.o_count, mo.loan_id
+		ORDER BY collectiondate DESC, count DESC;
+    </select>
+    
+    <insert id="insertLoan" parameterType="com.crepass.restfulapi.one.domain.OneLoan">
+    	<![CDATA[
+			INSERT INTO mari_loan(m_id, m_name, i_birth, m_hp, i_sex, i_myeonguija, i_rectal_address, i_businessname, i_businesshp
+			, i_grade, i_once, i_attendinguse, i_ppdocuments, i_project_period, i_payment, i_loan_pay, i_loan_day, i_year_plus, i_repay
+			, i_repay_day, i_auction_day, i_subject, i_purpose, i_plan, i_loan_pose, i_pmyeonguija, i_newsagency, i_occu
+			, i_occu_scale, i_company_name, i_officeworkers, i_company_day, i_plus_pay_mon, i_plus_pay_year, i_living_pay, i_out_paper, i_wedding, i_home_many
+			, i_home_ok, i_home_me, i_home_stay, i_car_ok, i_home_address, i_creditpoint_one, i_creditpoint_two, i_credit_pay, i_regdatetime, i_modidatetime
+			, i_level_dti, i_employment, i_invest_eday, i_ip, i_view, i_look, i_recom, ca_pk, ca_num, ca_id
+			, ca_sub_id, ca_ssub_id, i_pay_ment, i_chu, i_sep, i_step3_ck, i_stef, i_img, i_ltext, i_locaty
+			, i_locaty_01, i_locaty_02, i_pro_type, i_gener, i_profit_pay, i_capital_pay, i_total_pay, i_expect_pay, i_process, i_educa
+			, i_traffic, i_history, i_loan_type, i_ltv, i_conni, i_security, i_security_type, i_realestate_price, i_country_price, i_rental_price
+			, i_expact_bid, i_senior_price, i_ten_price, i_district, i_only_area, i_supply_area, i_earth_area, i_area, i_compile_map, i_zone
+			, i_conni_admin, i_loanexecutiondate, i_loanapproval, i_top_view, i_expact_fail, i_motivation, i_business_num, i_company_name2, i_business_type, i_location
+			, i_csectors, i_perating_period, i_service_item, i_numberof_ep, i_annual_sales, i_monthly_sales, i_mtp_loan, i_monthly_netprofit, i_eamountof_01, i_eamountof_02
+			, i_eamountof_03, i_eamountof_04, i_pendingsf_use, i_noble_01, i_occu_average_grade, i_occu_standard_grade, i_occu_admissionyear, i_occu_academicyear, m_companynum, keyword
+			, m_gubun, graduated)
+			VALUES (#{mid}, #{mname}, #{birth}, #{mhp}, #{sex}, '', '', #{businessname}, ''
+			, '0', '', '', '||||||||', '', #{payment}, #{loanPay}, #{loanDay}, #{yearPlus}, #{repay}
+			, #{repayDay}, '0', '', '', #{plan}, #{loanPose}, '', #{newsagency}, #{occu}
+			, '', '', #{officeworkers}, '0', '0', '0', '0', '||||', '', '0'
+			, '', '', '', '', #{homeAddress}, '0', '0', '0', CURRENT_TIMESTAMP(6), '0000-00-00 00:00:00'
+			, '', '', '0000-00-00', '', 'N', 'N', 'N', '0', '0',#{payment}
+			, '', '', '', '', '', 'N', '', '', '', ''
+			, '', '', '', '', '0', '0', '0', '0', '0', ''
+			, '', '', #{loanType}, '0', '0', '', '', '0', '0', '0'
+			, '0', '0', '0', '', '0', '0', '0', '', '', ''
+			, '0', '0000-00-00 00:00:00', 'N', '2', '' ,'', '', '', '', ''
+			, '', '', '', '0', '0', '0', '0', '0', '0', '0'
+			, '0', '0', 'N', '0', '', '', '', '', '', ''
+			, #{mgubun}, #{graduated});
+        ]]>
+    </insert>
+    
+    <select id="selectLoanSendSMS" resultType="string" parameterType="string">
+		SELECT loan_msg FROM mari_smsload;
+    </select>
+    
+    <insert id="insertConnectChannel" parameterType="string">
+    	<![CDATA[
+			INSERT INTO cpas_channel(loan_id, channel) VALUES(#{param1}, #{param2});
+        ]]>
+    </insert>
+    
+    <select id="selectLoanDataInfo" resultType="com.crepass.restfulapi.one.domain.OneLoanDataInfo" parameterType="string">
+	    SELECT ml.i_id AS loan_id, ml.i_loan_pay, IFNULL(SUM(mi.i_pay), 0) AS invest_pay, date_format(ml.i_regdatetime, '%Y-%m-%d') AS regdate, IFNULL(ml.i_subject,'없음') AS title
+		, COUNT(mi.i_pay) AS invest_cn, CAST(IFNULL((SUM(mi.i_pay) / mi.i_loan_pay) * 100, 0) AS SIGNED) AS ratio
+		, ml.i_loanapproval AS status FROM mari_loan ml
+		LEFT JOIN mari_invest mi ON mi.loan_id = ml.i_id
+		WHERE ml.m_id = #{param1}
+		AND (i_loanapproval = 'N' OR i_loanapproval = 'E' OR i_loanapproval = 'A' OR i_loanapproval = 'Y')
+		GROUP BY ml.i_id;
+    </select>
+    <select id="selectOrderDataInfo" resultType="com.crepass.restfulapi.one.domain.OneOrderDataInfo" parameterType="string">
+	    SELECT DISTINCT mo.o_count, crs.r_pay_amount AS deposit, mo.o_maturity, mo.o_id, mo.o_subject AS title
+		, date_format(mo.o_datetime, '%Y-%m-%d') AS o_date, mo.o_status AS status, clm.id AS memoId, clm.memo, clm.created_dt AS createDt
+		FROM mari_order mo
+		INNER JOIN cpas_repayment_schedule crs
+		ON crs.loan_id = mo.loan_id AND crs.r_count = mo.o_count
+		LEFT JOIN cpas_loan_memo clm
+		ON clm.loan_id = mo.loan_id AND clm.o_id = mo.o_id
+		WHERE mo.user_id = #{param1}
+		ORDER BY mo.o_id DESC LIMIT 1;
+    </select>
+    
+    
+    <!-- api v2 start -->
+    <select id="selectLoanList" resultType="hashmap">
+    	<choose>
+    		<!-- 전체 -->
+    		<when test="loanCode == 'A'.toString()">
+				<![CDATA[
+					SELECT ml.i_id AS loanId, ml.i_subject AS subject, ml.i_loan_day AS repayTerm, ml.i_repay AS repayWay
+						, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id AND ml.i_exec_date >= DATE_FORMAT(s_update_date, '%Y-%m-%d') ORDER BY s_update_date DESC LIMIT 1), 'E') AS grade
+						, IFNULL((SELECT s_score FROM cpas_lenddo_score WHERE m_id = ml.m_id AND ml.i_exec_date >= DATE_FORMAT(s_update_date, '%Y-%m-%d') ORDER BY s_update_date DESC LIMIT 1), 0) AS scoreLenddo
+						, IF(ml.loan_step4 = 'N', 'S', IF((SELECT DISTINCT p_pay_status FROM cpas_payment_schedule WHERE loan_id = ml.i_id AND p_count = ml.i_loan_day) = 'C', 'P', 'R')) AS loanCode
+					FROM mari_loan ml, mari_invest_progress mip
+					WHERE ml.i_loanapproval <> 'C' AND ml.m_id = #{mid} AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%') AND mip.loan_id = ml.i_id
+					ORDER BY FIELD(loanCode, 'P', 'R', 'S') DESC, CAST(SUBSTRING_INDEX(SUBSTR(subject,3),'호)',1) AS UNSIGNED) DESC
+					LIMIT #{pageNum}, #{pageSize};
+				]]>
+			</when>
+			
+			<!-- 펀딩중 -->
+			<when test="loanCode == 'S'.toString()">
+				<![CDATA[
+					SELECT ml.i_id AS loanId, ml.i_subject AS subject, ml.i_loan_day AS repayTerm, ml.i_repay AS repayWay
+						, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id AND ml.i_exec_date >= DATE_FORMAT(s_update_date, '%Y-%m-%d') ORDER BY s_update_date DESC LIMIT 1), 'E') AS grade
+						, IFNULL((SELECT s_score FROM cpas_lenddo_score WHERE m_id = ml.m_id AND ml.i_exec_date >= DATE_FORMAT(s_update_date, '%Y-%m-%d') ORDER BY s_update_date DESC LIMIT 1), 0) AS scoreLenddo
+						, 'S' as loanCode
+					FROM mari_loan ml, mari_invest_progress mip
+					WHERE ml.i_loanapproval <> 'C' AND ml.loan_step4 = 'N' AND ml.m_id = #{mid} AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%') AND mip.loan_id = ml.i_id
+					AND CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED)
+					ORDER BY CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) DESC
+					LIMIT #{pageNum}, #{pageSize};
+		        ]]>
+			</when>
+			
+			<!-- 상환중 -->
+			<when test="loanCode == 'R'.toString()">
+				<![CDATA[
+					SELECT DISTINCT ml.i_id AS loanId, ml.i_subject AS subject, ml.i_loan_day AS repayTerm, ml.i_repay AS repayWay
+						, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id AND ml.i_exec_date >= DATE_FORMAT(s_update_date, '%Y-%m-%d') ORDER BY s_update_date DESC LIMIT 1), 'E') AS grade
+						, IFNULL((SELECT s_score FROM cpas_lenddo_score WHERE m_id = ml.m_id AND ml.i_exec_date >= DATE_FORMAT(s_update_date, '%Y-%m-%d') ORDER BY s_update_date DESC LIMIT 1), 0) AS scoreLenddo
+						, 'R' AS loanCode
+					FROM cpas_payment_schedule cps, mari_loan ml
+					WHERE ml.i_loanapproval <> 'C' AND cps.loan_id = ml.i_id AND cps.p_count = ml.i_loan_day AND ml.m_id = #{mid} AND cps.p_pay_status = 'N'
+					AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%')
+					AND CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) <> 0
+					ORDER BY CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) DESC
+					LIMIT #{pageNum}, #{pageSize};
+				]]>
+			</when>
+			
+			<!-- 상환완료 -->
+			<when test="loanCode == 'P'.toString()">
+				<![CDATA[
+					SELECT DISTINCT ml.i_id AS loanId, ml.i_subject AS subject, ml.i_loan_day AS repayTerm, ml.i_repay AS repayWay
+						, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id AND ml.i_exec_date >= DATE_FORMAT(s_update_date, '%Y-%m-%d') ORDER BY s_update_date DESC LIMIT 1), 'E') AS grade
+						, IFNULL((SELECT s_score FROM cpas_lenddo_score WHERE m_id = ml.m_id AND ml.i_exec_date >= DATE_FORMAT(s_update_date, '%Y-%m-%d') ORDER BY s_update_date DESC LIMIT 1), 0) AS scoreLenddo
+						, 'P' AS loanCode
+					FROM cpas_payment_schedule cps, mari_loan ml
+					WHERE ml.i_loanapproval <> 'C' AND cps.loan_id = ml.i_id AND cps.p_count = ml.i_loan_day AND ml.m_id = #{mid} AND cps.p_pay_status <> 'N'
+					AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%')
+					AND CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) <> 0
+					ORDER BY CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) DESC
+					LIMIT #{pageNum}, #{pageSize};
+				]]>
+			</when>
+		</choose>
+    </select>
+    
+    
+    
+    <select id="selectLoanListCount" resultType="int">
+    	<choose>
+    		
+    		<!-- 전체 -->
+    		<when test="loanCode == 'A'.toString()">
+    			<![CDATA[
+	    			SELECT COUNT(i_id)
+					FROM mari_loan ml
+					WHERE i_loanapproval <> 'C' AND m_id = #{mid} AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%');
+		 		 ]]>
+            </when>
+            
+            <!-- 펀딩중 -->
+			<when test="loanCode == 'S'.toString()">
+				<![CDATA[
+					SELECT COUNT(ml.i_id)
+					FROM mari_loan ml
+					WHERE i_loanapproval <> 'C' AND ml.loan_step4 = 'N' AND m_id = #{mid} AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%')
+				]]>
+			</when>
+			
+			<!-- 상환중 -->
+			<when test="loanCode == 'R'.toString()">
+				<![CDATA[
+					SELECT COUNT(DISTINCT ml.i_id)
+					FROM cpas_payment_schedule cps, mari_loan ml
+					WHERE ml.i_loanapproval <> 'C' AND cps.loan_id = ml.i_id AND cps.p_count = ml.i_loan_day AND ml.m_id = #{mid} AND cps.p_pay_status = 'N'
+					AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%')
+					AND CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) <> 0
+					ORDER BY CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) DESC
+				]]>
+			</when>
+			
+			<!-- 상환완료 -->
+			<when test="loanCode == 'P'.toString()">
+				<![CDATA[
+					SELECT COUNT(DISTINCT ml.i_id)
+					FROM cpas_payment_schedule cps, mari_loan ml
+					WHERE ml.i_loanapproval <> 'C' AND cps.loan_id = ml.i_id AND cps.p_count = ml.i_loan_day AND ml.m_id = #{mid} AND cps.p_pay_status <> 'N'
+					AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%')
+					AND CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) <> 0
+					ORDER BY CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) DESC
+				]]>
+			</when>
+		</choose>
+    </select>
+    
+    
+    
+    <select id="selectLoanItem" resultType="hashmap">
+    	SELECT ml.i_id as loanId, ml.i_subject as subject, ml.i_loan_pay as loanMoney, sum(mi.i_pay) as totMoney
+		FROM mari_loan ml, mari_invest mi
+		WHERE mi.loan_id = ml.i_id AND ml.i_id = #{loanId};
+    </select>
+    
+    <select id="selectInvestorList" resultType="hashmap">
+    	SELECT mm.m_level AS level, IF(mm.m_nick='', mm.m_name, mm.m_nick) AS name, mi.i_pay AS investMoney
+		FROM mari_invest mi, mari_member mm
+		WHERE mm.m_id = mi.m_id AND mi.loan_id = #{loanId};
+    </select>
+    
+    <select id="selectInvestTargetList" resultType="hashmap">
+	    SELECT mm.m_id AS mid, IF(mm.m_nick='',mm.m_name,mm.m_nick) AS name
+		FROM mari_invest mi, mari_loan ml, mari_member mm
+		WHERE mi.loan_id = ml.i_id AND mm.m_id = mi.m_id AND mi.loan_id = #{loanId};
+    </select>
+    
+    <select id="selectLoanItemSubject" resultType="string">
+    	SELECT i_subject AS subject FROM mari_loan WHERE i_id = #{loanId}
+    </select>
+    
+   	<select id="selectPaymentList" resultType="hashmap">
+   		<![CDATA[
+	   		SELECT crs.r_count AS repayCount , crs.r_pay_amount AS repayMoney , crs.r_ln_amount AS loanMoney
+				, crs.r_interest_amount AS interest, crs.r_delq_amount AS lateInterest, IF(crs.r_delq_state=0,'N','Y') AS lateStatus
+				, (SELECT DISTINCT p_pay_status FROM cpas_payment_schedule WHERE loan_id = ml.i_id AND p_count = crs.r_count) AS repayStatus
+				, (SELECT DISTINCT p_pay_date FROM cpas_payment_schedule WHERE loan_id = ml.i_id AND p_count = crs.r_count) AS repayDate
+			FROM mari_loan ml
+			INNER JOIN cpas_repayment_schedule crs ON crs.loan_id = ml.i_id
+			WHERE ml.i_loanapproval <> 'C' AND ml.i_exec_date IS NOT NULL AND ml.i_id = #{loanId};
+		]]>
+   	</select>
+   	
+   	<select id="selectLoanBalance" resultType="hashmap">
+   		<![CDATA[
+	   		SELECT ml.i_subject AS subject, ml.i_loan_pay AS loanMoney
+				, IFNULL((SELECT SUM(r_ln_amount) FROM cpas_repayment_schedule WHERE loan_id = ml.i_id AND r_count IN (SELECT DISTINCT p_count FROM cpas_payment_schedule WHERE loan_id = ml.i_id AND p_pay_status <> 'N')), 0) AS repayMoney 
+				, IFNULL((SELECT r_balance FROM cpas_repayment_schedule WHERE loan_id = ml.i_id AND r_count = (SELECT MAX(p_count) FROM cpas_payment_schedule WHERE loan_id = ml.i_id AND p_pay_status <> 'N')), ml.i_loan_pay) AS balanceMoney
+			FROM mari_loan ml
+			WHERE ml.i_loanapproval <> 'C' AND ml.i_exec_date IS NOT NULL AND ml.i_id = #{loanId};
+		]]>			
+   	</select>
+   	
+   	<insert id="insertLoanInfo" parameterType="com.crepass.restfulapi.v2.domain.LoanStepInfo">
+   		<![CDATA[
+			INSERT INTO mari_loan(m_id, m_name, i_birth, m_hp, i_sex, i_myeonguija, i_rectal_address, i_businessname, i_businesshp
+			, i_grade, i_once, i_attendinguse, i_ppdocuments, i_project_period, i_payment, i_loan_pay, i_loan_day, i_year_plus, i_repay
+			, i_repay_day, i_auction_day, i_subject, i_purpose, i_plan, i_loan_pose, i_pmyeonguija, i_newsagency, i_occu
+			, i_occu_scale, i_company_name, i_officeworkers, i_company_day, i_plus_pay_mon, i_plus_pay_year, i_living_pay, i_out_paper, i_wedding, i_home_many
+			, i_home_ok, i_home_me, i_home_stay, i_car_ok, i_home_address, i_creditpoint_one, i_creditpoint_two, i_credit_pay, i_regdatetime, i_modidatetime
+			, i_level_dti, i_employment, i_invest_eday, i_ip, i_view, i_look, i_recom, ca_pk, ca_num, ca_id
+			, ca_sub_id, ca_ssub_id, i_pay_ment, i_chu, i_sep, i_step3_ck, i_stef, i_img, i_ltext, i_locaty
+			, i_locaty_01, i_locaty_02, i_pro_type, i_gener, i_profit_pay, i_capital_pay, i_total_pay, i_expect_pay, i_process, i_educa
+			, i_traffic, i_history, i_loan_type, i_ltv, i_conni, i_security, i_security_type, i_realestate_price, i_country_price, i_rental_price
+			, i_expact_bid, i_senior_price, i_ten_price, i_district, i_only_area, i_supply_area, i_earth_area, i_area, i_compile_map, i_zone
+			, i_conni_admin, i_loanexecutiondate, i_loanapproval, i_top_view, i_expact_fail, i_motivation, i_business_num, i_company_name2, i_business_type, i_location
+			, i_csectors, i_perating_period, i_service_item, i_numberof_ep, i_annual_sales, i_monthly_sales, i_mtp_loan, i_monthly_netprofit, i_eamountof_01, i_eamountof_02
+			, i_eamountof_03, i_eamountof_04, i_pendingsf_use, i_noble_01, i_occu_average_grade, i_occu_standard_grade, i_occu_admissionyear, i_occu_academicyear, m_companynum, keyword
+			, m_gubun, graduated)
+			VALUES (#{mid}, #{mname}, #{birth}, #{hp}, #{gender}, '', '', #{loanStep01Item.jobName}, ''
+			, '0', '', #{loanStep01Item.attention}, '||||||||', '', 'cate05', #{loanStep01Item.loanPay}, #{loanStep01Item.loanDay}, '5.5', #{loanStep01Item.repayWay}
+			, #{loanStep01Item.repayDay}, '0', '', '', #{loanStep03Item.repayPlan}, #{loanStep01Item.loanPose}, '', #{newsagency}, ''
+			, '', '', #{loanStep03Item.repayJob}, '0', '0', '0', '0', '||||', '', '0'
+			, '', '', '', '', CONCAT('(', #{loanStep03Item.postCode}, ') ', #{loanStep03Item.address}, ' ', #{loanStep03Item.addressDetail}), '0', '0', '0', CURRENT_TIMESTAMP(6), '0000-00-00 00:00:00'
+			, '', '', '0000-00-00', '', 'N', 'N', 'N', '0', '0', 'cate05'
+			, '', '', '', '', '', 'N', '', '', '', ''
+			, '', '', '', '', '0', '0', '0', '0', '0', ''
+			, '', '', 'credit', '0', '0', '', '', '0', '0', '0'
+			, '0', '0', '0', '', '0', '0', '0', '', '', ''
+			, '0', '0000-00-00 00:00:00', 'N', '2', '' ,'', '', '', '', ''
+			, '', '', '', '0', '0', '0', '0', '0', '0', '0'
+			, '0', '0', 'N', '0', '', '', '', '', '', ''
+			, '1', '');
+        ]]>
+   	</insert>
+   	
+   	<insert id="insertLoanInfoV2" parameterType="com.crepass.restfulapi.v2.domain.LoanStepInfo">
+   		<![CDATA[
+			INSERT INTO mari_loan(m_id, m_name, i_birth, m_hp, i_sex, i_myeonguija, i_rectal_address, i_businessname, i_businesshp
+			, i_grade, i_once, i_attendinguse, i_ppdocuments, i_project_period, i_payment, i_loan_pay, i_loan_day, i_year_plus, i_repay
+			, i_repay_day, i_auction_day, i_subject, i_purpose, i_plan, i_loan_pose, i_pmyeonguija, i_newsagency, i_occu
+			, i_occu_scale, i_company_name, i_officeworkers, i_company_day, i_plus_pay_mon, i_plus_pay_year, i_living_pay, i_out_paper, i_wedding, i_home_many
+			, i_home_ok, i_home_me, i_home_stay, i_car_ok, i_home_address, i_creditpoint_one, i_creditpoint_two, i_credit_pay, i_regdatetime, i_modidatetime
+			, i_level_dti, i_employment, i_invest_eday, i_ip, i_view, i_look, i_recom, ca_pk, ca_num, ca_id
+			, ca_sub_id, ca_ssub_id, i_pay_ment, i_chu, i_sep, i_step3_ck, i_stef, i_img, i_ltext, i_locaty
+			, i_locaty_01, i_locaty_02, i_pro_type, i_gener, i_profit_pay, i_capital_pay, i_total_pay, i_expect_pay, i_process, i_educa
+			, i_traffic, i_history, i_loan_type, i_ltv, i_conni, i_security, i_security_type, i_realestate_price, i_country_price, i_rental_price
+			, i_expact_bid, i_senior_price, i_ten_price, i_district, i_only_area, i_supply_area, i_earth_area, i_area, i_compile_map, i_zone
+			, i_conni_admin, i_loanexecutiondate, i_loanapproval, i_top_view, i_expact_fail, i_motivation, i_business_num, i_company_name2, i_business_type, i_location
+			, i_csectors, i_perating_period, i_service_item, i_numberof_ep, i_annual_sales, i_monthly_sales, i_mtp_loan, i_monthly_netprofit, i_eamountof_01, i_eamountof_02
+			, i_eamountof_03, i_eamountof_04, i_pendingsf_use, i_noble_01, i_occu_average_grade, i_occu_standard_grade, i_occu_admissionyear, i_occu_academicyear, m_companynum, keyword
+			, m_gubun, graduated)
+			VALUES (#{mid}, #{mname}, #{birth}, #{hp}, #{gender}, '', '', #{loanStep01Item.jobName}, ''
+			, '0', '', #{loanStep01Item.attention}, '||||||||', '',  #{loanStep01Item.loanCate}, #{loanStep01Item.loanPay}, #{loanStep01Item.loanDay}, '1.0', #{loanStep01Item.repayWay}
+			, #{loanStep01Item.repayDay}, '0', '', '', #{loanStep03Item.repayPlan}, #{loanStep01Item.loanPose}, '', #{newsagency}, ''
+			, '', '', #{loanStep03Item.repayJob}, '0', '0', '0', '0', '||||', '', '0'
+			, '', '', '', '', CONCAT('(', #{loanStep03Item.postCode}, ') ', #{loanStep03Item.address}, ' ', #{loanStep03Item.addressDetail}), '0', '0', '0', CURRENT_TIMESTAMP(6), '0000-00-00 00:00:00'
+			, '', '', '0000-00-00', '', 'N', 'N', 'N', '0', '0', #{loanStep01Item.loanCate}
+			, '', '', '', '', '', 'N', '', '', '', ''
+			, '', '', '', '', '0', '0', '0', '0', '0', ''
+			, '', '', 'credit', '0', '0', '', '', '0', '0', '0'
+			, '0', '0', '0', '', '0', '0', '0', '', '', ''
+			, '0', '0000-00-00 00:00:00', 'N', '2', '' ,'', '', '', '', ''
+			, '', '', '', '0', '0', '0', '0', '0', '0', '0'
+			, '0', '0', 'N', '0', '', '', '', '', '', ''
+			, '1', '');
+        ]]>
+   	</insert>
+   	
+   	
+   	<insert id="insertLoanSocialSector">
+   		<![CDATA[
+			INSERT INTO cpas_loan_social_sector(social_id, loan_id, file_path)
+			VALUES(#{socialId}, #{loanId}, #{filePath});
+        ]]>
+   	</insert>
+   	
+   	<insert id="insertLoanEmergencyHistory">
+   		<![CDATA[
+			INSERT INTO cpas_emergency_history(loan_id, family_type, contact_address)
+			VALUES(#{loanId}, #{familyType}, #{contactAddress});
+        ]]>
+   	</insert>
+   	
+   	<select id="selectIndexLastId" resultType="string">
+   		<![CDATA[
+	   		SELECT LAST_INSERT_ID();
+		]]>			
+   	</select>
+
+	<select id="selectMemberIsChecked" resultType="string">
+   		<![CDATA[
+	   		SELECT m_no FROM mari_member WHERE m_id = #{mid} AND m_name = #{mname} AND m_birth = #{birth} AND m_hp = #{hp} AND m_newsagency = #{newsagency};
+		]]>			
+   	</select>
+   	
+   	<select id="selectLoanIsChecked" resultType="string">
+   		<![CDATA[
+	   		SELECT COUNT(i_id) FROM mari_loan WHERE m_id = #{mid} AND i_loanapproval = 'N';
+		]]>
+   	</select>
+   	
+   	<select id="selectLoanScheduleInfo" resultType="com.crepass.restfulapi.v2.domain.LoanScheduleInfo" parameterType="string">
+	    <![CDATA[
+			SELECT ml.i_subject AS loanSubject
+				, IF((SELECT p_balance FROM cpas_prepayment WHERE loan_id = ml.i_id) IS NOT NULL, 0
+					, IFNULL((SELECT r_balance FROM cpas_repayment_schedule WHERE loan_id = ml.i_id AND r_count = (SELECT MAX(p_count) FROM cpas_payment_schedule WHERE loan_id = ml.i_id AND p_pay_status = 'C')), ml.i_loan_pay)) AS balance
+				, ml.i_loan_pay AS loanPay
+				, IFNULL((SELECT SUM(r_ln_amount) FROM cpas_repayment_schedule WHERE loan_id = ml.i_id AND r_count <= (SELECT MAX(p_count) FROM cpas_payment_schedule WHERE loan_id = ml.i_id AND p_pay_status = 'C')), 0) AS totRepay
+			FROM mari_loan ml WHERE ml.i_id = #{loanId};
+		]]>
+    </select>
+    
+    <select id="selectLoanScheduleList" resultType="com.crepass.restfulapi.v2.domain.LoanScheduleItem" parameterType="string">
+	    <![CDATA[
+	    	SELECT DISTINCT crs.r_count AS count, ml.i_loan_day AS totCount
+				, IF(cps.p_pay_status = 'P', p_balance + p_interest + p_overdue + p_prepay, r_pay_amount + r_delq_amount) AS payAmount
+				, IF(cps.p_pay_status = 'P', p_balance, r_ln_amount) AS inAmount
+				, IF(cps.p_pay_status = 'P', p_interest, r_interest_amount) AS interest
+				, IF(cps.p_pay_status = 'P', p_overdue + p_prepay, r_delq_amount) AS interest
+				, r_delq_amount AS overdue, r_delq_state AS overdueState
+				, cps.p_pay_status AS repayState
+			FROM cpas_repayment_schedule crs
+			INNER JOIN mari_loan ml ON ml.i_id = crs.loan_id
+			INNER JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+			LEFT JOIN cpas_prepayment cp ON cp.loan_id = crs.loan_id
+			WHERE r_count <= IFNULL(cp.p_count, ml.i_loan_day)
+			AND crs.loan_id = #{loanId};
+		]]>
+    </select>
+    
+    <select id="selectLoanRepayAccntList" resultType="com.crepass.restfulapi.v2.domain.LoanRepayAccntItem" parameterType="string">
+	    <![CDATA[
+	    	SELECT i_id AS loanId, i_subject AS subject, i_loan_day AS loanDay, i_repay AS repayWay, i_loanAccntNo AS loanAccntNo
+			FROM mari_loan WHERE loan_step4 = 'Y'
+			AND m_id = #{mid}
+			AND CAST(SUBSTRING_INDEX(SUBSTR(i_subject,3),'호)',1) AS UNSIGNED) <> 0
+			ORDER BY CAST(SUBSTRING_INDEX(SUBSTR(i_subject,3),'호)',1) AS UNSIGNED) DESC;
+		]]>
+    </select>
+   	
+   	<select id="selectLoanPaymentHistoryItem" resultType="com.crepass.restfulapi.v2.domain.PaymentHistoryItem">
+	    <![CDATA[
+			SELECT tr_amt AS trxAmt, 'D' AS trxType, left(updated_date,19) AS createDt FROM cpas_deposit_trx WHERE acct_nb = (SELECT i_loanAccntNo FROM mari_loan WHERE i_id = #{loanId})
+			UNION
+			SELECT trx_amt AS trxAmt, 'R' AS trxType, left(updated_date,19) AS createDt FROM cpas_withdraw_trx WHERE loan_id = #{loanId} AND trx_flag = 'S' AND type_flag = 'L'
+			ORDER BY createDt DESC
+			LIMIT #{pageNum}, #{pageSize};
+		]]>
+    </select>
+    
+    <select id="selectLoanPaymentHistoryItemSize" resultType="int" parameterType="string">
+	    <![CDATA[
+			SELECT COUNT(*) FROM(SELECT tr_amt AS trxAmt, 'D' AS trxType, updated_date AS createDt FROM cpas_deposit_trx WHERE acct_nb = (SELECT i_loanAccntNo FROM mari_loan WHERE i_id = #{loanId})
+			UNION
+			SELECT trx_amt AS trxAmt, 'R' AS trxType, updated_date AS createDt FROM cpas_withdraw_trx WHERE loan_id = #{loanId} AND trx_flag = 'S' AND type_flag = 'L'
+			ORDER BY createDt DESC) A;
+		]]>
+    </select>
+    
+    <select id="selectLoanPaymentHistoryInfo" resultType="com.crepass.restfulapi.v2.domain.PaymentHistoryInfo" parameterType="string">
+	    <![CDATA[
+			SELECT i_loanAccntNo AS accntNo, cbc.b_name AS bankName
+			, IFNULL((SELECT SUM(tr_amt) FROM cpas_deposit_trx WHERE acct_nb = (SELECT i_loanAccntNo FROM mari_loan WHERE i_id = ml.i_id)), 0)
+			- IFNULL((SELECT SUM(trx_amt) FROM cpas_withdraw_trx WHERE loan_id = ml.i_id AND trx_flag = 'S' AND type_flag = 'L'), 0) AS trxAmt
+			FROM mari_loan ml, cpas_bank_code cbc
+			WHERE ml.i_id = #{loanId} AND cbc.b_code = '088';
+		]]>
+    </select>
+    
+    <select id="selectLoanContractStep01" resultType="com.crepass.restfulapi.v2.domain.LoanContractStep01" parameterType="string">
+	    <![CDATA[
+			SELECT ml.m_name AS mname, DATE_FORMAT(ml.i_birth, '%Y년 %m월 %d일') AS birth, ml.i_home_address AS address
+			, ml.m_hp AS hp
+			, cbc.b_name AS bankName, mm.m_my_bankacc AS bankAccntNum, ml.i_repay_day AS repayDay, ml.i_repay AS repayWay
+			FROM mari_loan ml
+			INNER JOIN mari_member mm ON mm.m_id = ml.m_id
+			LEFT JOIN cpas_bank_code cbc ON cbc.b_code = mm.m_my_bankcode
+			WHERE ml.i_id = #{loanId};
+		]]>
+    </select>
+    
+    <select id="selectLoanContractStep02" resultType="com.crepass.restfulapi.v2.domain.LoanContractStep02" parameterType="string">
+	    <![CDATA[
+			SELECT i_loan_pay AS loanPay, i_year_plus AS yearRate FROM mari_loan WHERE i_id = #{loanId};
+		]]>
+    </select>
+    
+    <update id="updateLoanCond" parameterType="string">
+         <![CDATA[
+            UPDATE cpas_view_status
+			SET loan_cond_time = now()
+			WHERE m_id = #{mid};
+         ]]>
+    </update>  
+    
+    <select id="selectRecentLoanExecTime" resultType="string" parameterType="string">
+	    <![CDATA[
+			SELECT IFNULL(i_loanexecutiondate,'0000-00-00') AS regTime
+			FROM mari_loan ml
+			WHERE i_exec_date IS NOT NULL
+			        AND i_id = (SELECT MAX(i_id) FROM mari_loan WHERE m_id = ml.m_id)
+			        AND m_id = #{mid}
+			;
+		]]>
+    </select>
+   	
+   	    
+    <select id="selectLoanCount" resultType="string" parameterType="string">
+	    <![CDATA[
+			SELECT COUNT(ml.i_id) AS loanCount
+			FROM mari_loan ml
+			INNER JOIN mari_invest_progress mip ON ml.i_id = mip.loan_id
+			WHERE ml.i_loanapproval <> 'C' AND mip.i_look IN ('Y' , 'C', 'D')
+			        AND ml.m_id = #{mid}
+			;
+		]]>
+    </select>
+   	
+    
+    
+</mapper>

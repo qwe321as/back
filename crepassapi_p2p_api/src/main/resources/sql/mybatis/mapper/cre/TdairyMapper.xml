@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.cre.dao.TdairyMapper">
+
+    <select id="selectTdairyById" resultType="com.crepass.restfulapi.cre.domain.Tdairy" parameterType="string">
+        <![CDATA[
+          SELECT C1.d_action_cd as actCd
+                , IF(HOUR(C1.d_action_ontime) = HOUR(current_time()) AND ISNULL(C1.d_action_offtime),1,0) as onOff
+                , C2.timesum as min
+          FROM crep2p_tdiary C1
+          LEFT OUTER JOIN
+          (
+             SELECT B1.d_action_cd, B1.d_action_date, SUM(B2.timesum) as timesum
+             FROM crep2p_tdiary B1,
+             (
+                 SELECT d_action_date
+                    , HOUR(d_action_ontime) hours
+                    , MAX(60-MINUTE(d_action_ontime))/COUNT(distinct d_action_cd) as timesum
+                 FROM crep2p_tdiary
+                 WHERE DATE_FORMAT(d_action_date, "%Y%m%d") = DATE_FORMAT(#{param2}, "%Y%m%d")
+                   AND DATE_FORMAT(d_action_ontime,"%Y%m%d%H") < DATE_FORMAT(sysdate(),"%Y%m%d%H")
+                   AND m_id =  #{param1}
+                  GROUP BY d_action_date, HOUR(d_action_ontime)
+             ) B2
+             WHERE B1.d_action_date = B2.d_action_date
+              AND HOUR(B1.d_action_ontime) = hours
+              AND B1.m_id =  #{param1}
+             GROUP BY B1.d_action_cd
+          ) C2
+          ON DATE_FORMAT(C1.d_action_date, "%Y%m%d") = DATE_FORMAT(#{param2}, "%Y%m%d")
+          AND DATE_FORMAT(C1.d_action_ontime, "%Y%m%d") <= DATE_FORMAT(sysdate(),"%Y%m%d%H")
+          AND C1.d_action_cd = C2.d_action_cd
+          WHERE DATE_FORMAT(C1.d_action_date, "%Y%m%d") = DATE_FORMAT(#{param2}, "%Y%m%d")
+          AND C1.m_id =  #{param1}
+        ]]>
+    </select>
+   
+    <insert id="insertTdairyById" parameterType="com.crepass.restfulapi.cre.domain.CreTdairy">
+        <![CDATA[
+            insert into crep2p_tdiary(
+                m_id
+                , d_action_cd
+                , d_action_date
+                , d_action_ontime
+                , d_last_update_date
+            ) 
+            SELECT #{mid} as m_id
+                    , #{actCd} as loan_id
+                    , CURRENT_TIMESTAMP(6) as d_action_date
+                    , CURRENT_TIMESTAMP(6) as d_action_ontime
+                    , CURRENT_TIMESTAMP(6) as d_last_update_date
+            FROM dual 
+            WHERE NOT EXISTS (
+                    SELECT m_id
+                    FROM crep2p_tdiary 
+                    WHERE m_id = #{mid} 
+                    AND d_action_cd = #{actCd} 
+                    AND DATE_FORMAT(d_action_ontime, "%m %d %Y %h") = DATE_FORMAT(SYSDATE(), "%m %d %Y %h")
+                ) 
+        ]]>
+    </insert>
+    
+    <update id="updateTdairyById" parameterType="com.crepass.restfulapi.cre.domain.CreTdairy">
+        <![CDATA[
+            UPDATE crep2p_tdiary
+            SET d_action_offtime = CURRENT_TIMESTAMP(6) 
+                , d_last_update_date = CURRENT_TIMESTAMP(6) 
+            WHERE m_id = #{mid}
+            AND DATE_FORMAT(d_action_ontime, "%m %d %Y %h") = DATE_FORMAT(SYSDATE(), "%m %d %Y %h")
+            AND d_action_cd = #{actCd}
+        ]]>
+    </update>
+    
+    <select id="selectTdairyStatisticsById" resultType="com.crepass.restfulapi.cre.domain.TdairyWeeks" parameterType="string">
+        <![CDATA[
+       SELECT A.d_action_cd as actCd
+               , WEEKDAY(A.d_action_date) as days
+               , SUM(B.timesum) as weekTime  
+         FROM crep2p_tdiary A,
+          (    SELECT d_action_date
+                   , HOUR(d_action_ontime) hours
+                   , MAX(60-MINUTE(d_action_ontime))/COUNT(distinct d_action_cd) as timesum
+               FROM crep2p_tdiary
+               WHERE DATE_FORMAT(d_action_ontime,"%Y%m%d%H") < DATE_FORMAT(sysdate(),"%Y%m%d%H")
+               AND DATE_FORMAT(d_action_date, "%Y%m%d") <= DATE_FORMAT(sysdate(), "%Y%m%d")
+               AND WEEKOFYEAR(d_action_ontime) = WEEKOFYEAR(curdate())
+               AND m_id = #{mid}
+               GROUP BY d_action_date, HOUR(d_action_ontime)
+          )B
+      WHERE A.d_action_date = B.d_action_date
+          AND HOUR(A.d_action_ontime) = B.hours
+          AND A.m_id = #{mid}
+          GROUP BY A.d_action_cd, WEEKDAY(A.d_action_date)
+        ]]>
+    </select>
+    
+</mapper>

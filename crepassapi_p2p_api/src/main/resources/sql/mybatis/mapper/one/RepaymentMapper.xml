@@ -1,0 +1,429 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.RepaymentMapper">
+
+    <select id="selectRepaymentDataInfo" resultType="com.crepass.restfulapi.one.domain.OneRepaymentDataInfo" parameterType="string">
+        SELECT ml.i_loan_day AS loanDay, ml.i_year_plus AS interestRate, ml.i_loanAccntNo AS loanAccntNo
+		FROM mari_loan ml
+		WHERE ml.i_id = #{param1};
+    </select>
+
+	<select id="selectRepaymentWithdrawInfo" resultType="com.crepass.restfulapi.one.domain.OneRepaymentWithdrawInfo" parameterType="string">
+        SELECT m_id AS mid, trx_amt AS trxAmt, updated_date AS updatedDate
+		FROM cpas_withdraw_trx
+		WHERE loan_id = #{param1} AND type_flag = 'L' AND trx_flag = 'S'
+		ORDER BY updated_date ASC;
+    </select>
+    
+    <select id="selectRepaymentScheduleLoanInfo" resultType="com.crepass.restfulapi.one.domain.OneRepaymentScheduleLoanInfo" parameterType="string">
+    	SELECT 0 AS count, 0 AS payAmount, 0 AS lnAmount
+		, 0 AS interestAmount, i_loan_pay AS balance, i_exec_date AS repayDate
+		FROM mari_loan
+		WHERE i_id = #{param1}
+		UNION
+        SELECT r_count AS count, r_pay_amount AS payAmount, r_ln_amount AS lnAmount
+		, r_interest_amount AS interestAmount, r_balance AS balance, r_repay_date AS repayDate
+		FROM cpas_repayment_schedule
+		WHERE loan_id = #{param1}
+		ORDER BY repayDate ASC;
+    </select>
+    
+    <select id="selectRepaymentScheduleItem" resultType="com.crepass.restfulapi.one.domain.OneRepaymentScheduleItem" parameterType="string">
+	    <![CDATA[
+            SELECT DISTINCT crs.loan_id AS loanId, crs.r_count AS count, cps.p_pay_date AS payDate, crs.r_pay_amount AS payAmount
+		    , crs.r_ln_amount AS lnAmount, crs.r_interest_amount AS interestAmount
+		    , crs.r_delq_amount AS rDelqAmount, crs.r_delq_state AS delqState
+		    , (SELECT DISTINCT p_pay_date FROM cpas_payment_schedule WHERE p_count = crs.r_count + 1 AND loan_id = crs.loan_id) AS nextDate
+			FROM cpas_repayment_schedule crs
+			INNER JOIN cpas_payment_schedule cps
+			ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+		    WHERE crs.r_count NOT IN (SELECT o_count FROM mari_order WHERE loan_id = crs.loan_id)
+		    AND crs.loan_id = #{param1} AND cps.p_pay_date < #{param2} AND cps.p_pay_status = 'N';
+        ]]>
+    </select>
+    
+    <select id="selectRepaymentScheduleItem2" resultType="com.crepass.restfulapi.one.domain.OneRepaymentScheduleItem" parameterType="string">
+	    <![CDATA[
+            SELECT DISTINCT crs.loan_id AS loanId, crs.r_count AS count, cps.p_pay_date AS payDate, crs.r_pay_amount AS payAmount
+		    , crs.r_ln_amount AS lnAmount, crs.r_interest_amount AS interestAmount
+		    , crs.r_delq_amount AS rDelqAmount, crs.r_delq_state AS delqState
+		    , (SELECT DISTINCT p_pay_date FROM cpas_payment_schedule WHERE p_count = crs.r_count + 1 AND loan_id = crs.loan_id) AS nextDate
+			FROM cpas_repayment_schedule crs
+			INNER JOIN cpas_payment_schedule cps
+			ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+		    WHERE crs.r_count NOT IN (SELECT o_count FROM mari_order WHERE loan_id = crs.loan_id)
+		    AND crs.loan_id = #{param1} AND cps.p_pay_date < #{param2} AND cps.p_pay_status = 'N' AND crs.r_count >= #{param3};
+        ]]>
+    </select>
+    
+    <select id="selectOverdueCount" resultType="_int" parameterType="string">
+	    <![CDATA[
+            SELECT COUNT(DISTINCT p_pay_date)
+		    FROM cpas_payment_schedule
+		    WHERE p_pay_status = 'N' AND loan_id = #{param1} AND p_pay_date < #{param2};
+        ]]>
+    </select>
+    
+    <!-- SELECT CAST(IF(IFNULL(MAX(crs.r_delq_state), 0) <= 1, COUNT(DISTINCT p_pay_date), '3') AS CHAR) -->
+    <select id="selectOverdueCount2" resultType="_int" parameterType="string">
+	    <![CDATA[
+		    SELECT CAST(IF(IFNULL(COUNT(DISTINCT p_pay_date), 0) <= 2, COUNT(DISTINCT p_pay_date), '3') AS CHAR)
+			FROM cpas_payment_schedule cps
+			INNER JOIN cpas_repayment_schedule crs ON crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count
+			WHERE cps.p_pay_status = 'N' AND cps.loan_id = #{param1} AND cps.p_count <= #{param2};
+        ]]>
+    </select>
+    
+    <select id="selectOverdueBalance" resultType="string" parameterType="string">
+	    <![CDATA[
+            SELECT r_ln_amount + r_balance FROM cpas_repayment_schedule crs
+		    INNER JOIN cpas_payment_schedule cps
+			ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+		    WHERE cps.p_pay_status = 'N' AND crs.loan_id = #{param1} ORDER BY r_count ASC LIMIT 1;
+        ]]>
+    </select>
+    
+    <select id="selectOverdueLoanInfo" resultType="string" parameterType="string">
+	    <![CDATA[
+            SELECT DISTINCT loan_id FROM cpas_payment_schedule WHERE p_pay_status = 'N'
+        ]]>
+    </select>
+    
+    <select id="selectOverdueLoanInfo_ExceptGPM" resultType="string" parameterType="string">
+	    <![CDATA[
+            SELECT DISTINCT loan_id FROM cpas_payment_schedule WHERE p_pay_status = 'N' 
+            AND loan_id NOT IN (SELECT i_id FROM mari_loan WHERE i_look IN ('R','B','S'));
+        ]]>
+    </select>
+    
+    <update id="updateRepaymentScheduleOverDue" parameterType="string">
+		<![CDATA[
+		    UPDATE cpas_repayment_schedule
+			SET r_delq_amount = #{param3}, r_delq_state = #{param4}
+			WHERE loan_id = #{param1} AND r_count = #{param2};
+		]]>
+    </update>
+    
+    <update id="updatePaymentScheduleOverDue" parameterType="string">
+		<![CDATA[
+			UPDATE cpas_payment_schedule
+		    SET p_delq_amount = #{param4}, p_tax = #{param5}, p_tax_local = #{param6}, p_fee = #{param7}
+		    WHERE m_id = #{param1} AND loan_id = #{param2} AND p_count = #{param3};
+		]]>
+    </update>
+    
+    <select id="selectRestOverdueBalance" resultType="com.crepass.restfulapi.one.domain.OneRestOverdueBalance" parameterType="string">
+	    <![CDATA[
+	        SELECT DISTINCT IFNULL((SELECT SUM(r_delq_amount) FROM cpas_repayment_schedule WHERE loan_id = cps.loan_id AND r_delq_state = 1), 0) AS delqPay
+	        , IFNULL((SELECT SUM(r_delq_amount) FROM cpas_repayment_schedule WHERE loan_id = cps.loan_id AND r_delq_state = 2), 0) AS prePay
+	        FROM cpas_payment_schedule cps
+	        INNER JOIN cpas_repayment_schedule crs
+	        ON crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count
+	        WHERE cps.loan_id = #{param1} AND p_pay_status = 'N';
+        ]]>
+    </select>
+    
+    <select id="selectRecentRepaymentDate" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT IFNULL(cps.p_pay_date, CURRENT_DATE()) FROM cpas_payment_schedule cps
+		    INNER JOIN cpas_repayment_schedule crs
+		    ON crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count
+		    WHERE cps.loan_id = #{param1} AND cps.p_pay_status = 'C' AND crs.r_delq_state = '0'
+    		ORDER BY cps.p_count DESC LIMIT 1;
+        ]]>
+    </select>
+    
+    <insert id="insertPrePayment" parameterType="com.crepass.restfulapi.one.domain.OnePrePayment">
+	    <![CDATA[
+	        INSERT INTO cpas_prepayment(loan_id, p_count, p_interest, p_overdue, p_prepay, p_balance)
+	        VALUES (#{loanId}, (SELECT DISTINCT IFNULL(MAX(p_count) + 1, 1) FROM cpas_payment_schedule WHERE p_pay_status = 'C' AND loan_id = #{loanId})
+	        , #{interest}, #{overdue}, #{prepay}, #{balance});
+	    ]]>
+    </insert>
+    
+    <insert id="insertPrePaymentProvide" parameterType="com.crepass.restfulapi.one.domain.OnePrePaymentProvide">
+	    <![CDATA[
+	       INSERT INTO cpas_prepayment_provide(m_id, loan_id, p_count, p_interest, p_interest_normal, p_interest_delq, p_interest_gihan, p_fee, p_tax, p_tax_local, p_pay_amount)
+	        VALUES (#{mid}, #{loanId}, (SELECT DISTINCT IFNULL(MAX(p_count) + 1, 1) FROM cpas_payment_schedule WHERE p_pay_status = 'C' AND loan_id = #{loanId})
+	        , #{interest}, #{interestNormal}, #{interestOverDue}, #{interestGihan}, #{fee}, #{tax}, #{taxLocal}, #{payAmount});
+	    ]]>
+    </insert>
+    
+    <update id="updatePaymentScheduleState" parameterType="string">
+		<![CDATA[
+			UPDATE cpas_payment_schedule
+	        SET p_pay_status = 'P', update_date = CURRENT_TIMESTAMP(6)
+	        WHERE p_pay_status = 'N' AND loan_id = #{param1};
+		]]>
+    </update>
+    
+    <select id="selectCheckOverdue" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT crs.r_delq_state FROM cpas_repayment_schedule crs
+			INNER JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+			WHERE cps.p_pay_status = 'N' AND crs.r_delq_state > 0 AND crs.loan_id = #{param1} LIMIT 1;
+        ]]>
+    </select>
+    
+    <insert id="insertOrderPrePayment" parameterType="com.crepass.restfulapi.one.domain.OneOrderPrePayment">
+	    <![CDATA[
+	        INSERT INTO mari_order(loan_id, o_payment, sale_id, sale_name, user_id, user_name, o_subject, o_count, o_ln_money_to, o_investamount
+			, o_mh_money, o_ln_iyul, o_interestrate, o_maturity, o_saleamount, o_amount, o_status, o_salestatus, o_saleln_money
+			, o_totalamount, o_ln_money, o_saletotalamount, o_ipay, o_interest, o_saleodinterest, o_odinterest, o_odinterestcount
+			, o_datetime, o_collectiondate, o_withholding, o_type, o_paytype, i_loan_type, i_balance, o_repayment_status)
+			VALUES(#{loanId}, 'cate05', #{mid}, #{mName}, #{saleId}, #{saleName}, #{subject}, #{count}, #{lnAmount}, #{payAmount}
+			, #{payAmount}, 0, #{interestrate}, #{maturity}, 0, 0, '입금완료', '정산완료', 0
+			, 0, 0, 0, #{ipay}, #{interest}, '', 0, 0
+			, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), 0, 'sale', #{repay}, 'credit', 0, 'Y');
+	    ]]>
+    </insert>
+    
+    <select id="selectOrderPrePaymentInfo" resultType="com.crepass.restfulapi.one.domain.OneOrderPrePayment" parameterType="string">
+	    <![CDATA[
+			SELECT mi.loan_id AS loanId, mi.m_id AS mid, mi.m_name AS mName, mi.user_id AS saleId, mi.user_name AS saleName, mi.i_subject AS subject, cps.p_count AS count
+			, mi.i_pay AS ipay
+			, ml.i_loan_day AS maturity, ml.i_year_plus AS interestrate, ml.i_repay AS repay
+			FROM mari_invest mi
+			INNER JOIN mari_loan ml
+			ON ml.i_id = mi.loan_id
+			LEFT JOIN cpas_payment_schedule cps
+			ON cps.loan_id = mi.loan_id
+			WHERE mi.m_id = #{param2}
+			AND cps.p_id IN (SELECT MIN(p_id) FROM cpas_payment_schedule where m_id = mi.m_id AND loan_id = #{param1} AND p_pay_status = 'N');
+        ]]>
+    </select>
+    
+    <select id="selectIsOverDueState" resultType="string" parameterType="string">
+	    <![CDATA[
+			SELECT state FROM cpas_overdue_history WHERE loan_id = #{param1} AND count = #{param2};
+        ]]>
+    </select>
+    
+    <insert id="insertOrverDueHistory" parameterType="string">
+	    <![CDATA[
+	        INSERT INTO cpas_overdue_history(loan_id, count)
+			VALUES(#{param1}, #{param2});
+	    ]]>
+    </insert>
+    
+    <update id="updateOrverDueState" parameterType="string">
+		<![CDATA[
+			UPDATE cpas_overdue_history
+			SET state = 'S', end_dt = CURRENT_TIMESTAMP(6)
+			WHERE loan_id = #{param1} AND count = #{param2} AND state = 'N';
+		]]>
+    </update>
+    
+    <select id="selectRepaymentCheckCount" resultType="com.crepass.restfulapi.one.domain.OneRepaymentCheckCount" parameterType="string">
+	    <![CDATA[
+			SELECT (r_pay_amount + r_delq_amount) AS payAmount, r_count AS 'count'
+			FROM cpas_repayment_schedule crs
+			INNER JOIN (SELECT  loan_id, p_count, p_pay_status, p_pay_date
+								FROM cpas_payment_schedule cps
+								WHERE loan_id = #{param1}
+								GROUP BY loan_id , p_count , p_pay_status , p_pay_date) cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+			 WHERE crs.loan_id = #{param1}
+			 AND DATE_FORMAT(cps.p_pay_date, '%Y%m%d') < DATE_FORMAT(#{param2}, '%Y%m%d');
+        ]]>
+    </select>
+    
+    <select id="selectRepaymentCheckCount2" resultType="com.crepass.restfulapi.one.domain.OneRepaymentCheckCount" parameterType="string">
+	    <![CDATA[
+			SELECT (r_pay_amount + r_delq_amount) AS payAmount, r_count AS 'count' FROM cpas_repayment_schedule WHERE loan_id = #{param1} AND DATE_FORMAT(r_repay_date, '%Y%m%d') <= DATE_FORMAT(#{param2}, '%Y%m%d');
+        ]]>
+    </select>
+    
+    <select id="selectRepaymentCheckCount3" resultType="com.crepass.restfulapi.one.domain.OneRepaymentCheckCount" parameterType="string">
+	    <![CDATA[
+			SELECT (r_pay_amount + r_delq_amount) AS payAmount, r_count AS 'count' FROM cpas_repayment_schedule crs WHERE crs.loan_id = #{param1} AND r_count IN (SELECT DISTINCT p_count FROM cpas_payment_schedule WHERE loan_id = crs.loan_id AND p_pay_status = 'C');
+        ]]>
+    </select>
+    
+    <select id="selectLaonExecuteDate" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT i_exec_date FROM mari_loan WHERE i_id = #{param1};
+        ]]>
+    </select>
+    
+    <select id="selectLoanCountByPayStatus" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT DISTINCT p_pay_status FROM cpas_payment_schedule WHERE loan_id = #{param1} AND p_count = #{param2};
+        ]]>
+    </select>
+    
+    <select id="selectOverduePayAmountSum" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT SUM(crs.r_pay_amount) AS payAmount
+			FROM cpas_repayment_schedule crs
+			WHERE crs.loan_id = #{loanId} AND crs.r_count IN (SELECT DISTINCT p_count FROM cpas_payment_schedule WHERE loan_id = crs.loan_id AND p_count = crs.r_count AND p_pay_date < #{payDate} AND p_pay_status = 'N');
+        ]]>
+    </select>
+    
+    <select id="selectOverdueCurrentDate" resultType="string" parameterType="string">
+	    SELECT DATE_FORMAT(created_dt, '%Y-%m-%d') FROM cpas_overdue_detail_history WHERE loan_id = #{loanId} AND count = #{count} ORDER BY created_dt DESC LIMIT 1;
+    </select>
+    
+    <insert id="insertOrverDueDetailHistory" parameterType="string">
+	    <![CDATA[
+	        INSERT INTO cpas_overdue_detail_history(loan_id, count, additional_rate, overdue_amount, overdue_state)
+    		VALUES(#{loanId}, #{count}, #{addtionalRate}, #{overdueAmount}, #{overdueSate});
+	    ]]>
+    </insert>
+    
+    <select id="selectPaymentScheduleItem" resultType="com.crepass.restfulapi.v2.domain.PaymentScheduleItem" parameterType="string">
+	    SELECT p_ln_amount AS inAmount, p_interest_amount AS interest, p_delq_amount AS overdue, p_tax AS tax, p_tax_local AS taxLocal,
+	     p_fee AS fee, m_id AS mid, loan_id AS loanId, p_count AS pCount, p_pay_date AS payDate, p_pay_status AS payStatus
+		    FROM cpas_payment_schedule WHERE m_id = #{mid} AND loan_id = #{loanId} AND p_count = #{count};
+    </select>
+    
+<!--       검증용 -->
+    <select id="selectPaymentScheduleItemTest" resultType="com.crepass.restfulapi.v2.domain.PaymentScheduleItem" parameterType="string">
+	    SELECT p_ln_amount AS inAmount, p_interest_amount AS interest, p_delq_amount AS overdue, p_tax AS tax, p_tax_local AS taxLocal,
+	     p_fee AS fee, m_id AS mid, loan_id AS loanId, p_count AS pCount, p_pay_date AS payDate, p_pay_status AS payStatus
+		    FROM cpas_payment_schedule WHERE m_id = #{mid} AND loan_id = #{loanId} AND p_count = #{count};
+    </select>
+    
+<!--     FROM cpas_payment_schedule WHERE m_id = #{mid} AND loan_id = #{loanId} AND p_count = #{count}; -->
+    <insert id="insertOrverDueInvestHistory" parameterType="string">
+	    <![CDATA[
+	        INSERT INTO cpas_overdue_invest_history(loan_id, m_id, count, overdue_amount, p_tax, p_tax_local, p_fee, overdue_state)
+			VALUES(#{loanId}, #{mid}, #{count}, #{overdue}, #{tax}, #{taxLocal}, #{fee}, #{overdueState});
+	    ]]>
+    </insert>
+        
+    <select id="selectOneMid" resultType="string" parameterType="string">
+	    SELECT m_id
+	    FROM mari_loan ml
+	    WHERE i_id = #{loanId};
+    </select>
+    
+    <select id="selectRepaymentTotalRefundAmt" resultType="_long" parameterType="string">
+	    SELECT IFNULL(sum(trx_amt), 0) as tmtRefund 
+	    FROM cpas_withdraw_trx 
+	    WHERE m_id= #{param1} AND loan_id=#{param2} AND refund_flag='Y';
+    </select>
+    
+    <select id="selectUnpaidRepayment" resultType="com.crepass.restfulapi.one.domain.OneUnpaidRepayment" parameterType="string">
+    	<![CDATA[
+		SELECT  crs.loan_id AS loanId, r_pay_amount AS payAmt, r_delq_amount AS delqAmt, r_balance AS balance,
+			p_count AS pCount, p_pay_status AS payStatus, p_pay_date AS payDate, crs.r_delq_state AS delqState
+		FROM cpas_repayment_schedule crs
+		INNER JOIN
+		    (SELECT  loan_id, p_count, p_pay_status, p_pay_date
+		    FROM cpas_payment_schedule cps
+		    WHERE loan_id = #{param1}
+		    GROUP BY loan_id , p_count , p_pay_status , p_pay_date) cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+		WHERE crs.loan_id = #{param1} AND cps.p_pay_status = 'N' AND p_pay_date < #{param2};
+			 ]]>
+    </select>
+    
+    <select id="selectPaidTillTodayRepayment" resultType="double" parameterType="string">
+     	<![CDATA[
+	    SELECT IFNULL(sum(r_pay_amount) + sum(r_delq_amount),0) AS payAmt
+		FROM cpas_repayment_schedule crs
+		INNER JOIN
+		    (SELECT  loan_id, p_count, p_pay_status, p_pay_date
+		    FROM cpas_payment_schedule cps
+		    WHERE loan_id = #{param1}
+		    GROUP BY loan_id , p_count , p_pay_status , p_pay_date) cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+		WHERE crs.loan_id = #{param1} AND p_pay_date <= #{param2};
+		 ]]>
+    </select>
+    
+    <select id="selectGihanRepayment" resultType="double" parameterType="string">
+     	<![CDATA[
+	    SELECT IFNULL(sum(r_ln_amount),0) AS payAmt
+		FROM cpas_repayment_schedule crs
+		INNER JOIN
+		    (SELECT  loan_id, p_count, p_pay_status, p_pay_date
+		    FROM cpas_payment_schedule cps
+		    WHERE loan_id = #{param1}
+		    GROUP BY loan_id , p_count , p_pay_status , p_pay_date) cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+		WHERE crs.loan_id = #{param1} AND cps.p_pay_status='N';
+		 ]]>
+    </select>
+    
+    <select id="selectRecentCountRepaymentDate" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT cps.p_pay_date
+			FROM cpas_repayment_schedule crs
+			INNER JOIN
+			    (SELECT loan_id, p_count, p_pay_status, p_pay_date
+			    FROM cpas_payment_schedule cps WHERE loan_id = #{param1}
+			    GROUP BY loan_id , p_count , p_pay_status , p_pay_date) cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+			WHERE crs.loan_id = #{param1} AND cps.p_pay_date < #{param2}
+			ORDER BY cps.p_count DESC LIMIT 1;
+        ]]>
+    </select>
+    
+        
+    <select id="selectRestBalance" resultType="string" parameterType="string">
+	    <![CDATA[
+	       SELECT sum(r_ln_amount)
+			FROM cpas_repayment_schedule crs
+			WHERE crs.loan_id = #{param1} AND crs.r_count >= #{param2};
+        ]]>
+    </select>
+    
+        
+	<!-- 세금 수정하기 위한 임시 쿼리 200503 -->
+    <update id="updatePaymentScheduleTax" parameterType="string">
+            <![CDATA[
+                UPDATE cpas_payment_schedule 
+				SET p_tax = #{param4}, p_tax_local = #{param5}
+				WHERE loan_id = #{param2} AND p_count = #{param3}
+				        AND m_id = #{param1};
+            ]]>
+    </update>
+    
+    
+    <select id="selectRepaymentPaidAmt" resultType="_long" parameterType="string">
+	    <![CDATA[
+	     SELECT IFNULL(sum(r_pay_amount+r_delq_amount),0) AS repayAmount
+		FROM cpas_repayment_schedule crs
+		INNER JOIN
+					(SELECT  loan_id, p_count, p_pay_status, p_pay_date
+					FROM cpas_payment_schedule cps
+					WHERE loan_id = #{param1}
+					GROUP BY loan_id , p_count , p_pay_status , p_pay_date) cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+		WHERE crs.loan_id = #{param1} AND cps.p_count = crs.r_count
+		AND cps.p_pay_status='C';
+        ]]>
+    </select>
+    
+    <select id="selectHadToBePaidAmt" resultType="_long" parameterType="string">
+	    <![CDATA[
+	     SELECT IFNULL(sum(r_pay_amount+r_delq_amount),0) AS repayAmount
+		FROM cpas_repayment_schedule crs
+		INNER JOIN
+					(SELECT  loan_id, p_count, p_pay_status, p_pay_date
+					FROM cpas_payment_schedule cps
+					WHERE loan_id = #{param1}
+					GROUP BY loan_id , p_count , p_pay_status , p_pay_date) cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count
+		WHERE crs.loan_id = #{param1} AND cps.p_count = crs.r_count
+		AND cps.p_pay_date <= date_format(now(),'%Y-%m-%d');
+        ]]>
+    </select>
+    
+    
+<!--     200530전에 지울예정 -->
+<!--      <insert id="insertPrePayment" parameterType="com.crepass.restfulapi.one.domain.OnePrePayment"> -->
+<!-- 	    <![CDATA[ -->
+<!-- 	        INSERT INTO cpas_prepayment(loan_id, p_count, p_interest, p_overdue, p_prepay, p_balance) -->
+<!-- 	        VALUES (#{loanId}, (SELECT DISTINCT IFNULL(MAX(p_count) + 1, 1) FROM cpas_payment_schedule WHERE p_pay_status = 'C' AND loan_id = #{loanId}) -->
+<!-- 	        , #{interest}, #{overdue}, #{prepay}, #{balance}); -->
+<!-- 	    ]]> -->
+<!--     </insert> -->
+
+<!--     <insert id="insertPrePaymentProvide" parameterType="com.crepass.restfulapi.one.domain.OnePrePaymentProvide"> -->
+<!-- 	    <![CDATA[ -->
+<!-- 	        INSERT INTO cpas_prepayment_provide(m_id, loan_id, p_count, p_interest, p_fee, p_tax, p_tax_local, p_pay_amount) -->
+<!-- 	        VALUES (#{mid}, #{loanId}, (SELECT DISTINCT IFNULL(MAX(p_count) + 1, 1) FROM cpas_payment_schedule WHERE p_pay_status = 'C' AND loan_id = #{loanId}) -->
+<!-- 	        , #{interest}, #{fee}, #{tax}, #{taxLocal}, #{payAmount}); -->
+<!-- 	    ]]> -->
+<!--     </insert> -->
+
+    
+</mapper>

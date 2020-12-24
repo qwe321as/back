@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.VirtualAccntMapper">
+    
+    <select id="selectVirtualaccnt" resultType="string" parameterType="string">
+        SELECT s_accntNo
+        FROM mari_seyfert 
+        WHERE m_id = #{mid} and s_memuse='Y'
+    </select>
+    
+    <select id="selectVirtualAccntInfo" resultType="com.crepass.restfulapi.one.domain.OneVirtualAccnt" parameterType="string">
+        SELECT account, type, is_use
+		FROM virtual_account
+		WHERE is_use = 'N'
+		AND type = 'I' limit 1;
+    </select>
+    
+    <select id="selectVirtualAccntLoanInfo" resultType="com.crepass.restfulapi.one.domain.OneVirtualAccnt" parameterType="string">
+        SELECT account, type, is_use
+		FROM virtual_account
+		WHERE is_use = 'N'
+		AND type = 'L' limit 1;
+    </select>
+    
+    <update id="updateMemberAccnt" parameterType="com.crepass.restfulapi.one.domain.OneSeyfertyVirtual">
+            <![CDATA[
+                UPDATE mari_seyfert
+                SET s_accntNo = #{accntNo}
+                    ,s_bnkCd = #{bnkCd}
+                    ,s_memuse = 'Y'
+                WHERE m_id = #{mid}
+            ]]>
+    </update>
+    
+    <update id="updateMemberLoanAccnt" parameterType="com.crepass.restfulapi.one.domain.OneSeyfertyVirtualUpdate">
+            <![CDATA[
+                UPDATE mari_seyfert
+                SET s_loanAccntNo = #{accntNo}
+                    ,s_memuse = 'Y'
+                WHERE m_id = #{mid}
+            ]]>
+    </update>
+    
+    <update id="updateVirtualaccntUse" parameterType="String">
+            <![CDATA[
+                UPDATE virtual_account
+                SET is_use = 'Y'
+                WHERE account = #{param1}
+            ]]>
+    </update>
+    
+    <select id="selectAccountById" resultType="com.crepass.restfulapi.one.domain.OneVirtualRealAccnt" parameterType="string">
+        SELECT m_my_bankacc as myBankacc
+                , m_my_bankname as myBankname
+                , m_my_bankcode as myBankcode
+                , m_emoney as emoney
+                , m_name as mname
+                , m_cust_id as custId
+        FROM mari_member  
+        WHERE m_id = #{mid}
+    </select>
+    
+    <insert id="insertAccntWithdraw" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO mari_seyfert_order(s_refId, m_id, m_name, s_subject, loan_id, s_amount, s_date
+									        , s_loanamount, o_count, s_tid, s_payuse, s_type, s_release
+											, o_orderuse, o_bankaccuse, o_funding_cancel, o_canceldate
+											, trnsctnTp, trnsctnSt)
+                values (#{gCode}, #{mid}, #{mName}, #{subject}, #{loanId}, #{iPay}, CURRENT_TIMESTAMP(6)
+		                , 0, 0, '', 'N', '2', 'N'
+						, 'N', 'N', 'N', '0000-00-00'
+						, '', '')
+        ]]>
+    </insert>
+    
+    <insert id="insertAccntWithdrawHistory" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO mari_outpay(m_id, m_name, o_pay, o_regdatetime, o_paydatetime, o_fin, o_refId, o_ip)
+                values (#{mid}, #{mName}, #{pay}, CURRENT_TIMESTAMP(6), '0000-00-00', 'N', #{gCode}, #{ip})
+        ]]>
+    </insert>
+    
+    <update id="updateSeyfertOrder" parameterType="String">
+            <![CDATA[
+                UPDATE mari_seyfert_order
+                SET s_tid = #{param1}
+                WHERE s_refId = #{param2}
+            ]]>
+    </update>
+    
+    <update id="updateOutPay" parameterType="String">
+            <![CDATA[
+                UPDATE mari_outpay
+                SET o_fin = 'Y'
+                	, o_paydatetime = CURRENT_TIMESTAMP(6)
+				WHERE o_refId = #{param1}
+            ]]>
+    </update>
+    
+    <update id="updateUserMoney" parameterType="String">
+            <![CDATA[
+                UPDATE mari_member
+                SET m_emoney = #{param2}
+                WHERE m_id = #{param1}
+            ]]>
+    </update>
+    
+	<!-- 출금신청 -->
+    <insert id="insertAccntWithdrawSchedule" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_withdraw_trx(m_id, trx_amt, type_flag)
+            VALUES (#{param1}, #{param2}, #{param3})
+        ]]>
+    </insert>
+    
+	<!-- 중도상환 -->
+    <insert id="insertAccntWithdrawSchedule2" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_withdraw_trx(m_id, loan_id, trx_amt, type_flag)
+            VALUES (#{param1}, #{param2}, #{param3}, #{param4})
+        ]]>
+    </insert>
+        
+	<!-- 대출실행시 투자자 출금내역 -->
+    <insert id="insertAccntWithdrawSchedule3" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_withdraw_trx(m_id, loan_id, trx_amt, type_flag, trx_flag)
+            VALUES (#{param1}, #{param2}, #{param3}, #{param4}, #{param5})
+        ]]>
+    </insert>
+    
+	<!-- 대출자 상환에 대한  출금내역  -->
+    <insert id="insertAccntWithdrawSchedule4" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_withdraw_trx(m_id, loan_id, trx_amt, type_flag, w_count)
+            VALUES (#{param1}, #{param2}, #{param3}, #{param4}, #{param5})
+        ]]>
+    </insert>
+
+    
+    <select id="selectAccntWithdrawSchedule" resultType="com.crepass.restfulapi.one.domain.OneVirtualAccntWithdraw" parameterType="string">
+        SELECT t_id as id, m_id as mid, SUM(trx_amt) as trxAmt
+		FROM cpas_withdraw_trx  
+		WHERE trx_flag = 'N' AND type_flag = 'I'
+		GROUP BY m_id;
+    </select>
+    
+<!--     정상상환 환불 -->
+<!--     <select id="selectAccntWithdrawSchedule_temp" resultType="com.crepass.restfulapi.one.domain.OneVirtualAccntWithdraw" parameterType="string"> -->
+<!-- SELECT  1 as id , cps.m_id as mid -->
+<!-- , sum((p_ln_amount+p_interest_amount+p_delq_amount-p_tax-p_tax_local-p_fee) * 3) as trxAmt, ms.m_name as memo -->
+<!-- FROM cpas_repayment_schedule crs -->
+<!-- INNER JOIN cpas_payment_schedule cps ON cps.loan_id = crs.loan_id AND cps.p_count = crs.r_count -->
+<!-- inner join mari_member mm on cps.m_id = mm.m_id -->
+<!-- inner join (select m_id, loan_id, w_count from cpas_withdraw_trx cwt where left(created_date, 10)='2020-05-11' and type_flag='L' -->
+<!--  order by loan_id) cwt on  -->
+<!-- crs.loan_id = cwt.loan_id and crs.r_count = cwt.w_count -->
+<!-- inner join mari_seyfert ms on cps.m_id = ms.m_id -->
+<!-- WHERE  -->
+<!-- cps.p_count = crs.r_count -->
+<!-- and ms.m_id in ('alive486@naver.com', 'sxi95920@ucmo.edu','domybest06@gmail.com','tingtai2@nate.com','khyang@fkbcg.com', 'empty_room01@naver.com') -->
+<!-- group by mid -->
+<!-- order by mid;   -->
+<!--     </select> -->
+    
+<!--     중도상환환불 -->
+<!--  5/29권관택, 김호민  6/1 김기영 이경재 SK남음  memo길이 7자 넘어가면 안됨;-->
+    <select id="selectAccntWithdrawSchedule_temp" resultType="com.crepass.restfulapi.one.domain.OneVirtualAccntWithdraw" parameterType="string">
+select 1 as id, cpp.m_id as mid, cpp.p_pay_amount as trxAmt, '이재형' as memo
+  from cpas_prepayment_provide cpp
+  inner join mari_member mm on mm.m_id = cpp.m_id
+  where -- cpp.loan_id='2607'  and 
+  cpp.m_id in ('igothewar@naver.com')
+		order by mid;
+    </select>
+    
+    <update id="updateWithdrawSchedule" parameterType="string">
+            <![CDATA[
+                UPDATE cpas_withdraw_trx
+                SET trx_flag = #{param2}, trx_no = #{param3}, updated_date = CURRENT_TIMESTAMP(6)
+                WHERE m_id = #{param1}
+                AND trx_flag = 'N'
+            ]]>
+    </update>
+    
+    <select id="selectBankById" resultType="string" parameterType="string">
+        SELECT b_name as bankName
+		FROM cpas_bank_code
+		WHERE b_code = #{param1};
+    </select>
+    
+    <select id="selectLoanVirtualaccnt" resultType="com.crepass.restfulapi.one.domain.OneLoanVirtualAccntInfo" parameterType="string">
+     <![CDATA[
+	    SELECT ml.i_loanAccntNo AS loanAccntNo, ml.m_id AS mid, mm.m_name AS name, mm.m_cust_id AS custId, ml.i_exec_date AS execDate, ml.i_subject AS subject
+		FROM mari_loan ml
+		INNER JOIN mari_member mm
+		ON mm.m_id = ml.m_id
+		WHERE i_id = #{param1};
+		]]>
+    </select>
+    
+</mapper>

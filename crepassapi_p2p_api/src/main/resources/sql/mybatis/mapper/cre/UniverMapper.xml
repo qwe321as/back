@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.cre.dao.UniverMapper">
+
+    <select id="selectUniverList" resultType="com.crepass.restfulapi.cre.domain.CreUniver">
+        SELECT school_name as schoolName
+        FROM school_master
+        WHERE school_status != '폐과'
+        GROUP BY school_name
+        ORDER bY school_name
+    </select>
+
+    <select id="selectUniverMajor" resultType="com.crepass.restfulapi.cre.domain.CreUniverMajor" parameterType="string">
+        SELECT major_name as majorName
+        FROM school_master
+        WHERE school_status != '폐과'
+        AND school_name = #{schoolName}  
+        GROUP BY school_name, major_name
+        ORDER BY school_name, major_name
+    </select>
+    
+</mapper>

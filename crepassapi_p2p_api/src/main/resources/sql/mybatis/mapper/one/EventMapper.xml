@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.EventMapper">
+
+    <select id="selectEventList" resultType="com.crepass.restfulapi.one.domain.OneEventItem" parameterType="string">
+	    <![CDATA[
+	        SELECT event_code, event_name, event_discount, event_discount_month, event_contents
+	        FROM cpas_event_list WHERE is_use = 'Y' AND event_start_dt <= CURRENT_TIMESTAMP(6) AND event_end_dt >= CURRENT_TIMESTAMP(6);
+        ]]>
+    </select>
+    
+    <select id="selectEventJoin" resultType="com.crepass.restfulapi.one.domain.OneEventJoin" parameterType="string">
+	    <![CDATA[
+	        SELECT cel.event_discount, cel.event_discount_month, cel.event_name, DATE_FORMAT(cel.event_start_dt, '%Y-%m-%d') AS event_start_dt, DATE_FORMAT(cel.event_end_dt, '%Y-%m-%d') AS event_end_dt
+			FROM cpas_event_history ceh, mari_member mm, cpas_event_list cel
+			WHERE ceh.cust_id = mm.m_cust_id AND mm.m_id = #{param1} AND ceh.is_use = 'Y'
+			AND cel.event_code = ceh.event_code
+			AND cel.is_use = 'Y' AND cel.event_start_dt <= CURRENT_TIMESTAMP(6) AND cel.event_end_dt >= CURRENT_TIMESTAMP(6);
+        ]]>
+    </select>
+    
+    <update id="updateEventJoinState" parameterType="string">
+	    <![CDATA[
+	        UPDATE cpas_event_history
+			SET is_use = 'N'
+			WHERE cust_id IN (SELECT m_cust_id FROM mari_member WHERE m_id = #{param1});
+        ]]>
+    </update>
+    
+    <insert id="insertEventJoinAdd" parameterType="string">
+	    <![CDATA[
+	        INSERT INTO cpas_event_history(cust_id, event_code, is_use)
+			VALUES((SELECT m_cust_id FROM mari_member WHERE m_id = #{param1}), #{param2}, 'Y');
+        ]]>
+    </insert>
+    
+    <select id="selectEventDiscount" resultType="com.crepass.restfulapi.one.domain.OneEventDiscount" parameterType="string">
+	    <![CDATA[
+	        SELECT event_discount, event_discount_month FROM cpas_event_history ceh, cpas_event_list cel, mari_member mm
+			WHERE ceh.is_use = 'Y' AND cel.event_code = ceh.event_code 
+			AND mm.m_id = #{param1} AND ceh.cust_id = mm.m_cust_id
+			AND cel.event_start_dt <= #{param2} AND cel.event_end_dt >= #{param2};
+        ]]>
+    </select>
+    
+    <select id="selectEventIsAddById" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT cust_id FROM cpas_event_history ceh, mari_member mm
+			WHERE ceh.cust_id = mm.m_cust_id AND mm.m_id = #{param1} AND is_use = 'Y' AND event_code = #{param2};
+        ]]>
+    </select>
+    
+    <select id="selectIsEvent" resultType="string" parameterType="string">
+	    <![CDATA[
+	        SELECT IF((SELECT COUNT(event_code) FROM cpas_event_list WHERE event_start_dt <= CURRENT_TIMESTAMP(6) AND event_end_dt >= CURRENT_TIMESTAMP(6) AND is_use = 'Y') = 0, -1, COUNT(cel.event_code))
+	        FROM cpas_event_list cel, cpas_event_history ceh, mari_member mm
+			WHERE ceh.event_code = cel.event_code AND ceh.cust_id = mm.m_cust_id AND cel.is_use = 'Y'
+			AND mm.m_id = #{param1} AND ceh.is_use = 'Y';
+        ]]>
+    </select>
+    
+    
+    <select id="selectEventListV2" resultType="com.crepass.restfulapi.v2.domain.OneEventItem">
+	    <![CDATA[
+	    SELECT w_id AS event_code
+		 , CASE WHEN (curdate() < w_start_dt) THEN 'N'
+					WHEN ( (curdate() >= w_start_dt) AND (curdate() <= w_end_dt) ) THEN 'Y'
+					WHEN  (curdate() > w_end_dt) THEN 'F' END AS is_use
+		 , w_subject AS event_name
+		 , DATE_FORMAT(w_start_dt, '%Y.%m.%d') AS event_start_dt,  DATE_FORMAT(w_end_dt, '%Y.%m.%d') AS event_end_dt
+		 , concat('https://p2p.crepass.com/img/event/', file_img) AS event_img_url
+		 , w_content AS event_contents
+		, IF(w_catecode='투자자', 'I', IF(w_catecode='대출자', 'L', null)) AS targetFlag
+		, w_datetime AS created_dt
+		FROM mari_write mw WHERE w_main_exposure='Y'
+		AND w_table='event'
+        ORDER BY 
+         FIELD(CASE WHEN (curdate() < w_start_dt) THEN 'N'
+					WHEN ( (curdate() >= w_start_dt) AND (curdate() <= w_end_dt) ) THEN 'Y'
+					WHEN  (curdate() > w_end_dt) THEN 'F' END, 'Y', 'N', 'F') ASC
+         , created_dt DESC;
+        ]]>
+    </select>
+    
+        <select id="selectEventListCount" resultType="_int">
+	    <![CDATA[
+			SELECT count(event_code)
+			FROM cpas_event_list
+			WHERE is_show='Y';
+        ]]>
+    </select>
+    
+        
+<!--     <select id="selectEventDetailV2" resultType="com.crepass.restfulapi.one.domain.OneEventItem" parameterType="string"> -->
+<!-- 	    <![CDATA[ -->
+<!-- 	        SELECT event_code, event_name, event_discount, event_discount_month, -->
+<!-- 				event_contents, event_img_url, is_use, LEFT(event_start_dt, 10) AS event_start_dt, -->
+<!-- 				LEFT(event_end_dt, 10) AS event_end_dt, LEFT(created_dt, 10) AS created_dt, -->
+<!-- 				is_show, e_target_flag AS targetFlag, e_main_flag AS mainFlag -->
+<!-- 			FROM cpas_event_list -->
+<!-- 			WHERE event_code = #{param1} -->
+<!--         ]]> -->
+<!--         <if test="param2 != null and param2 != ''.toString()"> -->
+<!--         <![CDATA[ -->
+<!-- 			 	AND e_target_flag = #{param2}; -->
+<!-- 			 ]]> -->
+<!-- 		</if> -->
+		
+<!--     </select> -->
+        <select id="selectEventDetailV2" resultType="com.crepass.restfulapi.v2.domain.OneEventItem" parameterType="string">
+	    <![CDATA[
+	      SELECT w_id AS event_code
+			 , CASE WHEN (curdate() < w_start_dt) THEN 'N'
+						WHEN ( (curdate() >= w_start_dt) AND (curdate() <= w_end_dt) ) THEN 'Y'
+						WHEN  (curdate() > w_end_dt) THEN 'F' END AS is_use
+			 , w_subject AS event_name
+			 , DATE_FORMAT(w_start_dt, '%Y.%m.%d') AS event_start_dt,  DATE_FORMAT(w_end_dt, '%Y.%m.%d') AS event_end_dt
+			 , concat('https://p2p.crepass.com/img/event/', file_img) AS event_img_url
+			 , w_content AS event_contents
+			 , w_datetime AS created_dt
+			 , IF(w_catecode='투자자', 'I', IF(w_catecode='대출자', 'L', null)) AS targetFlag
+					FROM mari_write mw WHERE w_table='event' AND w_id = #{param1} LIMIT 1;
+        ]]>
+<!--         <if test="param2 != null and param2 != ''.toString()"> -->
+<!--         <![CDATA[ -->
+<!-- 			 	AND w_catecode = #{param2}; -->
+<!-- 			 ]]> -->
+<!-- 		</if> -->
+<!-- 		 <![CDATA[ -->
+<!-- 		 		ORDER BY created_dt DESC LIMIT 1; -->
+<!-- 		 ]]> -->
+    </select>
+    
+    
+    
+</mapper>

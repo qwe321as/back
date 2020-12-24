@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.WishMapper">
+
+    <select id="selectWishById" resultType="com.crepass.restfulapi.one.domain.OneWish" parameterType="string">
+	    <![CDATA[
+	        SELECT mip.loan_id as loanId
+				, mip.i_invest_name as investName
+				, mip.i_invest_pay as investPay
+				, i_year_plus as yearPlus
+				, (SELECT IFNULL(s_crepass_grade, 'E') FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1) as investCredit
+				, (IFNULL((SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = mip.loan_id), 0) / mip.i_invest_pay) * 100 as investPer
+				, IF(mw.m_id = #{mid}, 1, 0) as focFlag 
+				, medal_flag as medalFlag
+				, company_logo as companyLogo
+	        FROM mari_wishlist mw
+	        INNER JOIN mari_invest_progress mip ON mw.loan_id = mip.loan_id AND mip.i_look = 'Y'   
+	        INNER JOIN mari_loan ml ON ml.i_id = mip.loan_id 
+	        WHERE mw.m_id = #{mid} AND ml.i_loanapproval <> 'C'
+	        GROUP BY ml.i_id
+			ORDER BY mw.ws_datetime DESC;
+		]]>
+    </select>
+    
+    <insert id="insertWishById" parameterType="string">
+        <![CDATA[
+            INSERT INTO mari_wishlist( m_id , loan_id , ws_datetime ) 
+            SELECT #{param1} as m_id
+                    , #{param2} as loan_id
+                    , CURRENT_TIMESTAMP(6) as ws_datetime
+            FROM dual 
+            WHERE NOT EXISTS (
+                    SELECT m_id
+                    FROM mari_wishlist 
+                    WHERE m_id = #{param1} 
+                    AND loan_id = #{param2}
+                ) 
+        ]]>
+    </insert>
+    
+    <delete id="deleteWishById" parameterType="java.util.HashMap">
+        <if test="loanList.size != 0">
+            DELETE FROM mari_wishlist
+            WHERE m_id = #{mid}
+            AND loan_id in
+            <foreach item="loan" collection="loanList" open="(" separator="," close=")">
+                #{loan.loanid}
+            </foreach>
+        </if>
+    </delete>
+    
+    <!-- api v2 start -->
+    <select id="selectWishById2" resultType="com.crepass.restfulapi.v2.domain.LoansVO" parameterType="com.crepass.restfulapi.v2.domain.PageDTO">
+	    <![CDATA[
+	    	SELECT ml.i_id AS loanid, ml.i_subject AS loanSubject, ml.i_loan_pay AS loanMoney, ml.i_loan_day AS repayTerm
+				, ml.i_repay AS repayWay, mip.i_busin_corp_name AS businCorpName, cla.social_corp AS socialName
+				, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1),'E') AS grade
+				, TRUNCATE((DATE_FORMAT(NOW(), '%Y') - DATE_FORMAT(ml.i_birth,'%Y')+1),-1) AS age
+				, CASE WHEN ml.i_exec_date IS NOT NULL THEN 'Y' ELSE 'N' END AS isLoanExec
+				, ml.i_sex AS gender
+				, IF((SELECT COUNT(ws_id) FROM mari_wishlist mw WHERE mw.loan_id = ml.i_id AND mw.m_id = mw.m_id) > 0,'Y','N') AS isBookMark
+				, FLOOR((IFNULL((SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = mip.loan_id), 0) / ml.i_loan_pay) * 100) AS investProgress
+				, mip.i_edu_flag as eduFlag
+			FROM  mari_wishlist mw
+			INNER JOIN mari_loan ml ON ml.i_id = mw.loan_id
+			INNER JOIN mari_member mm ON mm.m_id = ml.m_id
+			INNER JOIN mari_invest_progress mip ON ml.i_id = mip.loan_id
+			LEFT JOIN cpas_loan_add_info cla ON cla.loan_id = ml.i_id
+			LEFT JOIN cpas_lenddo_score cls ON cls.m_id = ml.m_id
+			WHERE ml.i_loanapproval <> 'C' AND mip.loan_id NOT IN (1,29)
+			AND mw.m_id = #{mid}
+			ORDER BY isLoanExec ASC, CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject, 3),'호)',1) AS UNSIGNED) DESC
+			LIMIT #{pageNum}, #{pageSize}
+		]]>
+	</select>
+	
+	<select id="selectWishById2_1" resultType="com.crepass.restfulapi.v2.domain.LoansVO2" parameterType="com.crepass.restfulapi.v2.domain.PageDTO">
+		<![CDATA[
+	    	SELECT ml.i_id AS loanid, ml.i_subject AS loanSubject
+	    		, SUBSTRING_INDEX(SUBSTR(ml.i_subject, 2),'호)',1) AS loanSubjectA
+	    		, LTRIM(SUBSTRING_INDEX(ml.i_subject,'호)',-1)) AS loanSubjectB
+	    		, ml.i_loan_pay AS loanMoney, ml.i_loan_day AS repayTerm
+				, ml.i_repay AS repayWay, mip.i_busin_corp_name AS businCorpName, cla.social_corp AS socialName
+				, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1),'E') AS grade
+				, IFNULL((SELECT s_score FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1), 0) AS scoreLenddo
+				, TRUNCATE((DATE_FORMAT(NOW(), '%Y') - DATE_FORMAT(ml.i_birth,'%Y')+1),-1) AS age
+				, CASE WHEN ml.i_exec_date IS NOT NULL THEN 'Y' ELSE 'N' END AS isLoanExec
+				, ml.i_sex AS gender
+				, IF((SELECT COUNT(ws_id) FROM mari_wishlist mw WHERE mw.loan_id = ml.i_id AND mw.m_id = mw.m_id) > 0,'Y','N') AS isBookMark
+				, FLOOR((IFNULL((SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = mip.loan_id), 0) / ml.i_loan_pay) * 100) AS investProgress
+				, mip.i_edu_flag as eduFlag, ml.i_corp_grade AS corpGrade, ml.ca_id AS categoryId
+			FROM  mari_wishlist mw
+			INNER JOIN mari_loan ml ON ml.i_id = mw.loan_id
+			INNER JOIN mari_member mm ON mm.m_id = ml.m_id
+			INNER JOIN mari_invest_progress mip ON ml.i_id = mip.loan_id
+			LEFT JOIN cpas_loan_add_info cla ON cla.loan_id = ml.i_id
+			LEFT JOIN cpas_lenddo_score cls ON cls.m_id = ml.m_id
+			WHERE ml.i_loanapproval <> 'C' AND mip.loan_id NOT IN (1,29)
+			AND mw.m_id = #{mid}
+			ORDER BY isLoanExec ASC, CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject, 3),'호)',1) AS UNSIGNED) DESC
+			LIMIT #{pageNum}, #{pageSize}
+		]]>
+	</select>
+	
+	<select id="selectWishByIdSize" resultType="int">
+		<![CDATA[
+			SELECT COUNT(ml.i_id) FROM  mari_wishlist mw
+			INNER JOIN mari_loan ml ON ml.i_id = mw.loan_id INNER JOIN mari_member mm ON mm.m_id = ml.m_id INNER JOIN mari_invest_progress mip ON ml.i_id = mip.loan_id
+			WHERE ml.i_loanapproval <> 'C' AND mip.loan_id NOT IN (1,29) AND mw.m_id = #{mid};
+        ]]>
+	</select>
+</mapper>

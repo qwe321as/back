@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.BoardMapper">
+
+    <select id="selectBoardById" resultType="com.crepass.restfulapi.one.domain.Board" parameterType="string">
+        SELECT w_table as wtable
+               , w_id as wid
+               , w_reply as wreply
+               , w_catecode as wcatecode
+               , w_comment as wcomment
+               , w_subject as wsubject
+               , w_content as wcontent
+               , w_rink as wrink
+               , concat('http://crapas.intowinsoft.com/crapas/data/media/',file_img) AS wfileImg
+               , date_format(w_datetime,'%Y.%m.%d') as createdDt
+        FROM
+            mari_write
+        WHERE
+            w_table = #{param1}
+         AND w_id = #{param2}
+    </select>
+    
+    <select id="selectBoardByAll" resultType="com.crepass.restfulapi.one.domain.Board" parameterType="string">
+        SELECT w_table as wtable
+                , w_id as wid
+                , w_reply as wreply
+                , w_catecode as wcatecode
+                , w_comment as wcomment
+                , w_subject as wsubject
+                , w_content as wcontent
+                , w_rink as wrink
+                , concat('http://crapas.intowinsoft.com/crapas/data/media/',file_img) AS wfileImg
+                , date_format(w_datetime,'%Y.%m.%d') as createdDt
+        FROM
+            mari_write
+        WHERE
+            w_table = #{param1}
+        ORDER BY w_id DESC
+    </select>
+    
+    <select id="selectQnaByAll" resultType="com.crepass.restfulapi.one.domain.BoardQna">
+        SELECT f_id as fid
+                , convert(f_sort using euckr) as fsort
+                , f_question as fquestion
+                , f_answer as fanswer
+                , f_regidate as fregidate
+        FROM
+            mari_faq
+        ORDER BY convert(f_sort using euckr), f_id
+    </select>
+    <select id="selectNoticeMain" resultType="com.crepass.restfulapi.one.domain.OneNoticeMain">
+        SELECT w_content AS mNoticeMsg, file_img AS mNoticeImg
+		FROM mari_write
+		WHERE w_table = 'mNotice'
+		AND w_main_exposure = 'Y'
+		ORDER BY w_id DESC LIMIT 1;
+    </select>
+    
+    <select id="selectOneEventItem"  parameterType="string" resultType="com.crepass.restfulapi.one.domain.OneEventItem">
+ SELECT event_code, event_name, event_description, event_img_url, event_contents, event_discount, 
+        	event_discount_month, is_use, event_start_dt, event_end_dt, created_dt,
+        	is_show, e_target_flag AS targetFlag, e_main_flag AS mainFlag
+		FROM cpas_event_list WHERE e_target_flag=#{param1}
+        AND e_main_flag = 'Y'
+        ORDER BY created_dt DESC LIMIT 1;
+    </select>
+        
+
+    <select id="selectOneEventItemV2"  parameterType="string" resultType="com.crepass.restfulapi.one.domain.OneNoticeMain">
+ 		SELECT w_id AS event_code, CONCAT("https://p2p.crepass.com/img/event/", file_img) AS mNoticeImg
+ 		, 'E' AS bannerFlag, null AS mNoticeMsg, file_img AS fileImg
+      	FROM mari_write mw 
+        WHERE w_banner='Y' AND w_catecode=#{param1}
+        LIMIT 1;
+    </select>
+    
+    <select id="selectGetBannerId"   resultType="String">
+ 		SELECT w_id AS event_code
+		FROM mari_write mw WHERE w_table='mNotice' and w_banner='Y' LIMIT 1;
+    </select>
+    
+<!--     SELECT w_content AS mNoticeMsg, concat('http://solution.crepass.com/crapas/data/mNotice/',file_img) AS mNoticeImg -->
+
+    <select id="selectNoticeMainV2" resultType="com.crepass.restfulapi.one.domain.OneNoticeMain">
+        SELECT w_content AS mNoticeMsg, concat('https://p2p.crepass.com/img/mNotice/',file_img) AS mNoticeImg
+        , 'N' AS bannerFlag, w_id AS event_code, file_img AS fileImg
+		FROM mari_write
+		WHERE w_table = 'mNotice'
+		AND w_banner = 'Y'
+		ORDER BY w_id DESC LIMIT 1;
+    </select>
+    
+</mapper>

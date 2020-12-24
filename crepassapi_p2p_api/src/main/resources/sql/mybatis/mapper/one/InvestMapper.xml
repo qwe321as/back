@@ -1,0 +1,1283 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.InvestMapper">
+
+    <select id="selectInvestLoanById" resultType="com.crepass.restfulapi.one.domain.OneWishInvest" parameterType="string">
+	    <![CDATA[
+	        SELECT mip.loan_id as loanId
+				, mip.i_invest_name as investName
+				, mip.i_invest_pay as investPay
+				, i_year_plus as yearPlus
+				, (SELECT IFNULL(s_crepass_grade, 'E') FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1) as investCredit
+			    , (IFNULL((SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = mip.loan_id), 0) / mip.i_invest_pay) * 100 as investPer
+				, IF(mw.m_id = #{mid}, 1, 0) as focFlag 
+			FROM mari_invest_progress mip 
+			INNER JOIN mari_loan ml ON ml.i_id = mip.loan_id
+			LEFT OUTER JOIN mari_wishlist mw ON mw.loan_id = ml.i_id AND mw.m_id = #{mid}
+			WHERE ml.i_loanapproval <> 'C' AND mip.i_look = 'Y'
+			ORDER BY loanId DESC;
+		]]>
+    </select>
+    
+    <select id="selectInvestLoanListById" resultType="com.crepass.restfulapi.one.domain.OneWishInvest" parameterType="string">
+	    <![CDATA[
+	       SELECT DISTINCT mip.loan_id as loanId
+				, mip.i_invest_name as investName
+				, CAST(ml.i_loan_pay * 0.0001 AS unsigned) as investPay
+				, i_year_plus as yearPlus
+				, (SELECT IFNULL(s_crepass_grade, 'E') FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1) as investCredit
+				, (IFNULL((SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = mip.loan_id), 0) / ml.i_loan_pay) * 100 as investPer
+				, IF(mw.m_id = #{param1}, 1, 0) as focFlag 
+				, medal_flag as medalFlag
+				, company_logo as companyLogo, mip.i_edu_flag as eduFlag
+			FROM mari_invest_progress mip 
+			INNER JOIN mari_loan ml ON ml.i_id = mip.loan_id 
+			LEFT OUTER JOIN mari_wishlist mw ON mw.loan_id = ml.i_id
+			LEFT JOIN cpas_loan_category clc ON ml.i_id = clc.loan_id
+			LEFT JOIN cpas_loan_add_info clai ON clai.loan_id = ml.i_id
+			WHERE ml.m_id != #{param1} AND clc.category_id = #{param2}
+			AND ml.i_loanapproval <> 'C' AND mip.i_look = 'Y'
+			AND (i_subject LIKE CONCAT('%', #{param3}, '%') OR i_loan_pose LIKE CONCAT('%', #{param3}, '%') OR i_loan_pay = #{param3} OR i_businessname LIKE CONCAT('%', #{param3}, '%') OR social_corp LIKE CONCAT('%', #{param3}, '%'))
+			AND CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(i_subject, '호)', 1), '(C', -1) AS unsigned) <> 0
+			ORDER BY CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(mip.i_invest_name, '호)', 1), '(C', -1) AS unsigned) DESC;
+		]]>
+    </select>
+    
+    <select id="selectInvestLoanListAllById" resultType="com.crepass.restfulapi.one.domain.OneWishInvest" parameterType="string">
+	    <![CDATA[
+			SELECT DISTINCT mip.loan_id as loanId
+				, mip.i_invest_name as investName
+				, CAST(ml.i_loan_pay * 0.0001 AS unsigned) as investPay
+				, i_year_plus as yearPlus
+				, (SELECT IFNULL(s_crepass_grade, 'E') FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1) as investCredit
+				, (IFNULL((SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = mip.loan_id), 0) / ml.i_loan_pay) * 100 as investPer
+				, IF(mw.m_id = #{param1}, 1, 0) as focFlag 
+				, medal_flag as medalFlag
+				, company_logo as companyLogo, mip.i_edu_flag as eduFlag
+			FROM mari_invest_progress mip 
+			INNER JOIN mari_loan ml ON ml.i_id = mip.loan_id
+			LEFT OUTER JOIN mari_wishlist mw ON mw.loan_id = ml.i_id AND mw.m_id = #{param1}
+			LEFT JOIN cpas_loan_category clc ON ml.i_id = clc.loan_id
+			LEFT JOIN cpas_loan_add_info clai ON clai.loan_id = ml.i_id
+			WHERE ml.m_id != #{param1}
+			AND ml.i_loanapproval <> 'C' AND mip.i_look = 'Y'
+			AND (i_subject LIKE CONCAT('%', #{param2}, '%') OR i_loan_pose LIKE CONCAT('%', #{param2}, '%') OR i_loan_pay = #{param2} OR i_businessname LIKE CONCAT('%', #{param2}, '%') OR social_corp LIKE CONCAT('%', #{param2}, '%'))
+			AND CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(i_subject, '호)', 1), '(C', -1) AS unsigned) <> 0
+			ORDER BY CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(mip.i_invest_name, '호)', 1), '(C', -1) AS unsigned) DESC;
+		]]>
+    </select>
+    
+    <select id="selectInvestLoanListItemById" resultType="com.crepass.restfulapi.one.domain.OneWishInvest" parameterType="string">
+        SELECT mip.loan_id as loanId
+			, mip.i_invest_name as investName
+			, mip.i_invest_pay as investPay
+			, i_year_plus as yearPlus
+			, (SELECT IFNULL(s_crepass_grade, 'E') FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1) as investCredit
+			, (IFNULL((SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = mip.loan_id), 0) / mip.i_invest_pay) * 100 as investPer
+			, IF(mw.m_id = #{param1}, 1, 0) as focFlag 
+			, medal_flag as medalFlag
+			, company_logo as companyLogo
+		FROM mari_invest_progress mip 
+		INNER JOIN mari_loan ml ON ml.i_id = mip.loan_id
+		LEFT OUTER JOIN mari_wishlist mw ON mw.loan_id = ml.i_id AND mw.m_id = #{param1}
+		LEFT JOIN cpas_loan_category clc ON ml.i_id = clc.loan_id
+		WHERE ml.i_id = #{param2}
+		GROUP BY ml.i_id;
+    </select>
+    
+    <select id="selectLoanById" resultType="com.crepass.restfulapi.one.domain.OneInvestLoan" parameterType="string">
+        SELECT ml.i_loan_pay as loanPay
+                , ml.i_look as look
+                , ml.i_loan_day as loanDay
+                , ml.i_year_plus as yearPlus
+                , ml.i_loan_pose as purpose
+                , ml.i_repay as repay
+                , ml.i_plan as loanPose
+                , ml.i_birth as age
+                , ml.i_sex as xes
+                , ml.i_businessname as school
+                , ml.i_occu as major
+                , ml.graduated as graduate
+                , mip.i_summary as summary
+        FROM mari_loan ml
+        LEFT JOIN mari_invest_progress mip
+        ON ml.i_id = mip.loan_id
+        WHERE ml.i_id = #{loanId};
+    </select>
+    
+    <select id="selectDebtById" resultType="string" parameterType="string">
+        SELECT convert(i_debt_list using euckr) as debtList
+        FROM mari_debt md
+        INNER JOIN 
+        ( 
+            SELECT max(i_no) ino
+            FROM mari_debt
+            WHERE loan_id = #{param1}  
+        ) mdm
+        ON md.i_no = mdm.ino
+        WHERE md.loan_id = #{param1};  
+    </select>
+    
+    <select id="selectCreditById" resultType="com.crepass.restfulapi.one.domain.OneInvestCredit" parameterType="string">
+		SELECT IFNULL(ml.i_creditpoint_two, '0') as investLevel
+                , IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1), 'E') as grade
+                , mip.i_invest_mini as investMin
+        FROM mari_invest_progress mip
+        INNER JOIN mari_loan ml ON ml.i_id = mip.loan_id
+        WHERE mip.loan_id = #{param1};
+    </select>
+    
+    <select id="selectInvestById" resultType="com.crepass.restfulapi.one.domain.OneInvestInfo" parameterType="string">
+        SELECT mip.i_invest_pay as investPay
+			, mip.i_invest_max as investMax
+			, ml.i_year_plus as yearPlus
+			, IFNULL(ml.i_creditpoint_two, '0') AS investLevel
+			, (SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1) as grade
+			, ml.i_loan_day as loanDay
+			, ml.i_loan_pay as loanPay
+		    , IFNULL(mi.i_pay, 0) as investUsePay
+		FROM mari_invest_progress mip
+		INNER JOIN mari_loan ml ON ml.i_id = mip.loan_id
+		LEFT JOIN mari_invest mi ON mi.loan_id = mip.loan_id AND mi.m_id = #{param2}
+		WHERE mip.loan_id = #{param1};
+    </select>
+    
+    <select id="selectAccountById" resultType="com.crepass.restfulapi.one.domain.OneInvestAccount" parameterType="string">
+        SELECT m_my_bankacc as myBankacc
+                , m_emoney as mEmoney
+                , m_my_bankcode as myBankcode
+        FROM mari_member  
+        WHERE m_id = #{mid}
+    </select>
+    
+    <select id="selectAccountById2" resultType="com.crepass.restfulapi.one.domain.OneInvestAccount" parameterType="string">
+        SELECT s_accntNo as myBankacc
+			, m_emoney as mEmoney
+			, s_bnkCd as myBankcode
+		FROM mari_member mm
+		LEFT JOIN mari_seyfert ms
+		ON mm.m_id = ms.m_id
+		WHERE mm.m_id = #{mid}
+    </select>
+    
+    <select id="selectInvestOrderUnitById" resultType="com.crepass.restfulapi.one.domain.OneInvestOrderUnit" parameterType="string">
+        SELECT mi.i_pay as ipay, ml.i_loan_day as maturity, ml.i_year_plus as lnIyul, ml.i_repay as paytype
+		FROM mari_invest mi
+		LEFT JOIN mari_loan ml
+		ON ml.i_id = mi.loan_id
+		WHERE ml.i_id = #{param2}
+		AND mi.m_id = #{param1};
+    </select>
+    
+    <select id="selectInvestOrderById" resultType="com.crepass.restfulapi.one.domain.OneInvestOrder" parameterType="string">
+        SELECT cps.p_count as count , p_pay_amount as investamount, p_ln_amount as inMoneyTo
+		, p_interest_amount as interest, (cps.p_tax + cps.p_tax_local) as tax, p_fee as fee
+		FROM mari_order mo
+		LEFT JOIN cpas_payment_schedule cps
+		ON mo.sale_id = cps.m_id
+		AND mo.loan_id = cps.loan_id
+		AND mo.o_count = cps.p_count
+		WHERE mo.sale_id = #{param1} AND mo.loan_id = #{param2}
+		AND cps.p_count NOT IN (SELECT p_count FROM cpas_prepayment_provide WHERE m_id = #{param1} AND loan_id = #{param2})
+		GROUP BY cps.p_id
+		UNION
+		SELECT cpp.p_count AS count, cpp.p_pay_amount AS investamount, (cpp.p_pay_amount - cpp.p_interest) AS inMoneyTo
+		, cpp.p_interest AS interest, (cpp.p_tax + cpp.p_tax_local) AS tax, cpp.p_fee AS fee
+		FROM cpas_prepayment_provide cpp WHERE cpp.m_id = #{param1} AND cpp.loan_id = #{param2};
+    </select>
+    
+    <select id="selectInvestCerti" resultType="string" parameterType="string">
+        SELECT m_my_bankacc as myBankacc
+        FROM mari_member  
+        WHERE m_id = #{mid}
+    </select>
+    
+    <select id="selectLoanContract" resultType="string" parameterType="string">
+        SELECT m_my_bankacc as myBankacc
+        FROM mari_member  
+        WHERE m_id = #{mid}
+    </select>
+    
+    <update id="updateiGrade" parameterType="com.crepass.restfulapi.one.domain.OneCrepassCredit">
+            <![CDATA[
+                update mari_invest_progress
+                set  i_grade = #{grade}
+                where loan_id in (select id from mari_loan where md5(m_id) = #{mid} and i_look = 'Y')
+                and i_look = 'N' 
+            ]]>
+    </update>  
+    
+    <select id="selectInvestMinPay" resultType="string" parameterType="string">
+    	<![CDATA[
+	        SELECT i_invest_mini
+	        FROM mari_invest_progress
+	        WHERE loan_id = #{param1}
+	        AND i_invest_mini <= #{param2}
+        ]]>
+    </select>
+    
+    <select id="selectInvestPossiblePay" resultType="string" parameterType="string">
+    	<![CDATA[
+	        SELECT ml.i_loan_pay - IFNULL(SUM(mi.i_pay), 0)
+			FROM mari_loan as ml, mari_invest as mi
+			WHERE ml.i_id = #{loan_id} AND mi.loan_id = #{loan_id}
+        ]]>
+    </select>
+    
+    <select id="selectInvestPossiblePay2" resultType="string" parameterType="string">
+    	<![CDATA[
+	        SELECT ml.i_loan_pay - IFNULL(SUM(mi.i_pay), 0)
+			FROM mari_loan as ml, mari_invest as mi
+			WHERE ml.i_id = #{param1} AND mi.loan_id = #{param1} AND mi.m_id <> #{param2}
+        ]]>
+    </select>
+    
+    <select id="selectInvestLimitPay" resultType="com.crepass.restfulapi.one.domain.OneInvestLimitPay" parameterType="string">
+    	<![CDATA[
+			SELECT IF(mm.m_level <= 2 AND (mm.m_signpurpose = 'L' or m_signpurpose = 'N'), (SELECT i_maximum FROM mari_inset) - ifnull(sum(mi.i_pay),0), 'false') as signpurposeL,
+			IF(mm.m_level <= 2 AND mm.m_signpurpose = 'I', (SELECT i_maximum_in FROM mari_inset) - ifnull(sum(mi.i_pay),0), 'false') as signpurposeI,
+			IF(mm.m_level <= 2 AND mm.m_signpurpose = 'P', (SELECT i_maximum_pro FROM mari_inset) - ifnull(sum(mi.i_pay),0), 'false') as signpurposeP,
+			IF(mm.m_level >= 3, (SELECT i_maximum_v FROM mari_inset) - ifnull(sum(mi.i_pay),0), 'false') as signpurpose3
+			, IFNULL(sum(mi.i_pay), 0) as sumIpay
+			FROM mari_member mm
+			LEFT JOIN mari_invest mi
+			ON mm.m_id = mi.m_id
+			LEFT JOIN mari_invest_progress mip
+			ON mi.loan_id = mip.loan_id
+			WHERE (mip.i_look = 'Y' OR mip.i_look = 'C' OR mip.i_look = 'D')
+			AND mi.m_id = #{param1};
+        ]]>
+    </select>
+    
+    <select id="selectInvestLimitPay2" resultType="com.crepass.restfulapi.one.domain.OneInvestLimitPay" parameterType="string">
+    	<![CDATA[
+			SELECT IF(mm.m_level <= 2 AND (mm.m_signpurpose = 'L' or mm.m_signpurpose = 'N'), mip.i_maximum, 'false') as signpurposeL,
+			IF(mm.m_level <= 2 AND mm.m_signpurpose = 'I', mip.i_maximum_in, 'false') as signpurposeI,
+			IF(mm.m_level <= 2 AND mm.m_signpurpose = 'P', mip.i_maximum_pro, 'false') as signpurposeP,
+			IF(mm.m_level >= 3, mip.i_maximum_v, 'false') as signpurpose3
+			FROM mari_member mm, mari_loan ml
+			LEFT JOIN mari_invest_progress mip
+			ON ml.i_id = mip.loan_id
+			WHERE (mip.i_look = 'Y' OR mip.i_look = 'C' OR mip.i_look = 'D')
+			AND mm.m_id = #{param1} AND ml.i_id = #{param2};
+        ]]>
+    </select>
+    
+    <select id="selectInvestDuplicate" resultType="string" parameterType="string">
+    	<![CDATA[
+	        SELECT i_pay
+	        FROM mari_invest
+	        WHERE m_id=#{param1} AND loan_id=#{param2};
+        ]]>
+    </select>
+    
+    <select id="selectInvestTitle" resultType="com.crepass.restfulapi.one.domain.OneInvestTitle" parameterType="string">
+    	<![CDATA[
+			SELECT mm.m_name as name, mm.m_cust_id as custId
+			, CAST(aes_decrypt(from_base64(mm.m_hp),'0982beb15fb2f0c584fa5872527c58b9', '0982beb15fb2f0c5') AS CHAR) AS hp
+			, i_subject as subject, COUNT(i_subject) as InvestSeq
+			FROM mari_loan ml, mari_member mm
+			WHERE ml.i_id = #{param2} AND mm.m_id = #{param1};
+        ]]>
+    </select>
+    
+    <insert id="insertInvest" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO mari_seyfert_order(s_refId, m_id, m_name, s_subject, loan_id, s_amount, s_date
+									        , s_loanamount, o_count, s_tid, s_payuse, s_type, s_release
+											, o_orderuse, o_bankaccuse, o_funding_cancel, o_canceldate
+											, trnsctnTp, trnsctnSt)
+                values (#{gCode}, #{mid}, #{mName}, #{subject}, #{loanId}, #{iPay}, CURRENT_TIMESTAMP(6)
+		                , 0, 0, '', 'N', '1', 'N'
+						, 'N', 'N', 'N', '0000-00-00'
+						, '', '')
+        ]]>
+    </insert>
+
+	<insert id="insertInvestDetail" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO mari_invest(loan_id, m_id, m_name, user_name, user_id, i_pay, i_subject, i_goods
+	        , i_bid, i_loan_pay, i_pay_ment, i_over_pay, i_total_pay, i_max_pay, i_day, i_memo
+	        , i_bid_char, i_over_num, i_profit_rate, i_profit_per, i_profit_pay, i_over_money, i_invest_eday, i_regdatetime
+	        , i_modidatetime, i_level_dti, i_ip, to_ln_money_a_data, o_interest_data, i_count, i_balance, i_loan_type)
+	        VALUES (#{loanId}, #{mid}, #{mname}, #{userName}, #{userId}, #{pay}, #{subject}, #{goods}
+	        , 'N', #{loanPay}, 'Y', 0, 0, #{maxPay}, #{day}, ''
+	        , '', 0, #{profitRate}, 0, 0, 0, 0, CURRENT_TIMESTAMP(6)
+	        , CURRENT_TIMESTAMP(6), 0, #{ip}, 0, 0, 0, 0, '');
+        ]]>
+    </insert>
+    
+    <insert id="insertInvestDetailAuto" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO mari_invest(loan_id, m_id, m_name, user_name, user_id, i_pay, i_subject, i_goods
+	        , i_bid, i_loan_pay, i_pay_ment, i_over_pay, i_total_pay, i_max_pay, i_day, i_memo
+	        , i_bid_char, i_over_num, i_profit_rate, i_profit_per, i_profit_pay, i_over_money, i_invest_eday, i_regdatetime
+	        , i_modidatetime, i_level_dti, i_ip, to_ln_money_a_data, o_interest_data, i_count, i_balance, i_loan_type, invest_auto)
+	        VALUES (#{loanId}, #{mid}, #{mname}, #{userName}, #{userId}, #{pay}, #{subject}, #{goods}
+	        , 'N', #{loanPay}, 'Y', 0, 0, #{maxPay}, #{day}, ''
+	        , '', 0, #{profitRate}, 0, 0, 0, 0, CURRENT_TIMESTAMP(6)
+	        , CURRENT_TIMESTAMP(6), 0, #{ip}, 0, 0, 0, 0, '', 'Y');
+        ]]>
+    </insert>
+
+	<update id="updateInvest" parameterType="string">
+		<![CDATA[
+			UPDATE mari_seyfert_order
+			SET s_tid = #{param1} 
+			WHERE m_id = #{param2}
+			AND loan_id = #{param3}
+			ORDER BY s_id DESC LIMIT 1;
+		]]>
+	</update>
+	
+	<select id="selectInvestLoan" resultType="com.crepass.restfulapi.one.domain.OneInvestLoanDefault" parameterType="string">
+    	<![CDATA[
+			SELECT m_id as mid, m_name as mname, i_loan_pay as loanPay, i_pay_ment as payMent, i_loan_day as loanDay, i_year_plus as yearPlus
+			FROM mari_loan
+			WHERE i_id = #{loan_id};
+        ]]>
+    </select>
+
+	<insert id="insertInvestPaymentHistory" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO mari_emoney(m_id, p_datetime, p_content, p_emoney, p_top_emoney, p_ip, loan_id, o_id)
+	        VALUES (#{mid}, CURRENT_TIMESTAMP(6), #{content}, #{emoney}, #{topEmoney}, #{ip}, #{loanId}, 0);
+        ]]>
+    </insert>
+
+	<select id="selectInvestIsPlaying" resultType="string" parameterType="string">
+    	<![CDATA[
+			SELECT SUM(i_pay) as sumPay
+			FROM mari_invest
+			WHERE loan_id = #{param1};
+        ]]>
+    </select>
+    
+    <select id="selectInvestSumPay" resultType="string" parameterType="string">
+    	<![CDATA[
+			SELECT IFNULL(SUM(i_pay), 0)
+			FROM mari_invest mi
+			RIGHT JOIN mari_invest_progress mip
+			ON mi.loan_id = mip.loan_id
+			WHERE mi.loan_id = #{param1};
+        ]]>
+    </select>
+
+	<select id="selectInvestId" resultType="string" parameterType="string">
+	    { CALL getInvestSeq(#{param1}) }
+    </select>
+    
+    <update id="updatePrinRcvNo" parameterType="string">
+		<![CDATA[
+			UPDATE mari_invest
+			SET invest_proof_no = #{param3}
+			WHERE loan_id = #{param2}
+			AND m_id = #{param1};
+		]]>
+	</update>
+    
+    <select id="selectInvestBalanceState" resultType="com.crepass.restfulapi.one.domain.OneInvestBalanceState" parameterType="string">
+    	<![CDATA[
+	    	SELECT DISTINCT cpp.loan_id AS loanId, ml.i_subject AS subject, mi.i_pay AS ipay, ml.i_loan_day AS maturity
+	        , ml.i_year_plus AS yearPlus, cpp.p_count AS count, cpp.p_pay_amount AS investamount
+	        , ((cpp.p_pay_amount + cpp.p_fee + cpp.p_tax + cpp.p_tax_local) - cpp.p_interest) AS inMoneyTo
+	        , cpp.p_interest AS interest, (cpp.p_tax + cpp.p_tax_local) AS tax, CAST(cpp.p_fee AS unsigned) AS fee, (cp.p_overdue + cp.p_prepay) AS overDue
+	        , DATE_FORMAT(cpp.create_date, '%Y-%m-%d') as repayDate, cpp.p_status as repaymentStatus
+	        FROM cpas_prepayment_provide cpp
+	        LEFT JOIN mari_loan ml
+	        ON ml.i_id = cpp.loan_id
+	        LEFT JOIN cpas_prepayment cp
+	        ON cp.loan_id = cpp.loan_id
+	        LEFT JOIN mari_invest mi
+	        ON mi.loan_id = cpp.loan_id AND mi.m_id = cpp.m_id
+	        WHERE cpp.m_id = #{param1}
+	        UNION
+			SELECT mo.loan_id as loanId, mo.o_subject as subject, mo.o_ipay as ipay, mo.o_maturity as maturity
+			, ml.i_year_plus as yearPlus, cps.p_count as count , cps.p_pay_amount as investamount
+			, cps.p_ln_amount as inMoneyTo, cps.p_interest_amount as interest, (cps.p_tax + cps.p_tax_local) as tax, CAST(cps.p_fee AS unsigned) as fee
+			, cps.p_delq_amount as overDue, DATE_FORMAT(mo.o_collectiondate, '%Y-%m-%d') as repayDate, mo.o_repayment_status as repaymentStatus
+			FROM mari_order mo
+			LEFT JOIN cpas_payment_schedule cps
+			ON mo.sale_id = cps.m_id
+			RIGHT JOIN mari_loan ml
+			ON ml.i_id = mo.loan_id
+			AND mo.loan_id = cps.loan_id
+			AND mo.o_count = cps.p_count
+			WHERE mo.sale_id = #{param1} AND cps.p_pay_status = 'C'
+			AND mo.o_repayment_status = 'Y'
+			ORDER BY repayDate DESC, count DESC;
+        ]]>
+    </select>
+    
+    <select id="selectInvestAutoDivision" resultType="com.crepass.restfulapi.one.domain.OneInvestAutoDivision" parameterType="string">
+    	<![CDATA[
+			SELECT a_id as aid, m_id as mid, a_onoff as isActivate, a_limit_loan as limitLoan
+			, a_limit_month as limitMonth, a_univ_name as univName, a_agreed_yn as agreedYN
+			FROM cpas_invest_auto
+			WHERE m_id = #{param1}
+			AND a_onoff = 'A'
+			ORDER BY a_update_date DESC LIMIT 1;
+        ]]>
+    </select>
+    
+    <select id="selectInvestAutoCategory" resultType="com.crepass.restfulapi.one.domain.OneInvestCategory" parameterType="string">
+    	<![CDATA[
+			SELECT category_id as categoryId
+			FROM cpas_invest_category
+			WHERE a_id = #{param1};
+        ]]>
+    </select>
+    
+    <insert id="insertInvestAutoDivision" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_invest_auto(m_id, a_onoff, a_limit_loan, a_limit_month, a_univ_name, a_agreed_yn)
+			VALUES(#{mid}, #{isActivate}, #{limitLoan}, #{limitMonth}, #{univName}, #{agreedYN});
+        ]]>
+    </insert>
+    
+    <insert id="insertInvestAutoDivisionCategory" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_invest_category(a_id, category_id)
+			VALUES(#{param1}, #{param2});
+        ]]>
+    </insert>
+    
+    <select id="selectInvestInfoData" resultType="com.crepass.restfulapi.one.domain.OneInvestInfoData" parameterType="string">
+    	<![CDATA[
+			SELECT 
+			IF(IFNULL((SELECT MAX(r_delq_state) FROM cpas_repayment_schedule crs, cpas_payment_schedule cps
+			WHERE crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count AND cps.loan_id = mi.loan_id
+			AND DATE_FORMAT(cps.p_pay_date, '%Y%m%d') <= DATE_FORMAT(CURRENT_DATE(), '%Y%m%d') AND p_pay_status = 'N'), 0) > 0, 'O', mip.i_look) AS i_look
+			, mip.loan_id, mip.i_invest_name AS title, mi.i_loan_pay, mi.i_profit_rate AS interest_rate
+			, mi.i_day AS i_loan_day, mi.i_pay, mi.i_id
+			, FLOOR((IFNULL((SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = mip.loan_id), 0) / mip.i_invest_pay) * 100) AS ratio
+			FROM mari_invest_progress mip
+			INNER JOIN mari_invest mi
+			ON mip.loan_id = mi.loan_id
+			INNER JOIN mari_loan ml
+			ON ml.i_id = mi.loan_id
+			WHERE mi.m_id = #{param1}
+			AND (ml.i_loanapproval = 'N' OR ml.i_loanapproval = 'E' OR ml.i_loanapproval= 'A' OR ml.i_loanapproval= 'Y')
+			ORDER BY mi.i_regdatetime DESC;
+        ]]>
+    </select>
+    
+    <select id="selectInvestInfoOrderData" resultType="com.crepass.restfulapi.one.domain.OneInvestInfoOrderData" parameterType="string">
+    	<![CDATA[
+			SELECT mo.loan_id, mo.o_subject AS title, mo.o_ipay AS i_pay, ml.i_year_plus AS interest_rate
+			, ml.i_loan_day AS maturity, mo.o_collectiondate AS collectiondate, mo.o_count AS count
+			, cps.p_ln_amount AS principal, cps.p_interest_amount AS interest, cps.p_delq_amount AS overdueinterest
+			, (cps.p_ln_amount + cps.p_interest_amount) AS sum
+			, mo.o_salestatus AS status, cps.p_fee AS fee, (p_tax + p_tax_local) AS withholding, mo.o_id
+			FROM mari_order mo
+			LEFT JOIN mari_loan ml
+			ON ml.i_id = mo.loan_id
+			LEFT JOIN cpas_payment_schedule cps
+			ON cps.loan_id = mo.loan_id AND cps.p_count = mo.o_count
+			AND cps.m_id = mo.sale_id
+			WHERE mo.sale_id = #{param1}
+			ORDER BY mo.o_collectiondate DESC, mo.o_count DESC;
+        ]]>
+    </select>
+    
+    <update id="updateInvestPay" parameterType="string">
+		<![CDATA[
+			UPDATE mari_invest
+			SET i_pay = #{param3}, i_modidatetime = CURRENT_TIMESTAMP(6)
+			WHERE m_id = #{param1} AND loan_id = #{param2};
+		]]>
+	</update>
+    
+    <insert id="insertInvestHistory" parameterType="string">
+    	<![CDATA[
+	        INSERT INTO cpas_invest_history(loan_id, cust_id, trans_ipay, ipay, gcode, subject, work_state)
+			VALUES(#{param1}, #{param2}, #{param3}, #{param4}, #{param5}, #{param6}, #{param7});
+        ]]>
+    </insert>
+    
+    <update id="updateInvestLeave" parameterType="string">
+		<![CDATA[
+			INSERT INTO mari_invest_leave(i_id, loan_id, m_id, m_name, user_name, user_id, i_pay, i_subject, i_goods, i_bid, i_loan_pay, i_pay_ment, i_over_pay, i_total_pay, i_max_pay, i_day
+			, i_memo, i_bid_char, i_over_num, i_profit_rate, i_profit_per, i_profit_pay, i_over_money, i_invest_eday, i_regdatetime, i_modidatetime, i_level_dti, i_ip
+			, to_ln_money_a_data, o_interest_data, i_count, i_balance, i_loan_type, invest_proof_no, invest_auto)
+			SELECT i_id, loan_id, m_id, m_name, user_name, user_id, i_pay, i_subject, i_goods, i_bid, i_loan_pay, i_pay_ment, i_over_pay, i_total_pay, i_max_pay, i_day
+			, i_memo, i_bid_char, i_over_num, i_profit_rate, i_profit_per, i_profit_pay, i_over_money, i_invest_eday, i_regdatetime, i_modidatetime, i_level_dti, i_ip
+			, to_ln_money_a_data, o_interest_data, i_count, i_balance, i_loan_type, invest_proof_no, invest_auto
+			FROM mari_invest WHERE loan_id = #{param2} AND m_id = #{param1};
+		]]>
+	</update>
+    
+    <delete id="deleteInvest" parameterType="string">
+        <![CDATA[
+            DELETE FROM mari_invest
+            WHERE loan_id = #{param2} AND m_id = #{param1};
+        ]]>
+    </delete>
+    
+    <select id="selectInvestUserInfo" resultType="com.crepass.restfulapi.one.domain.OneInvestUserInfo" parameterType="string">
+    	<![CDATA[
+			SELECT mi.i_pay AS iPay, mi.i_subject AS subject, mm.m_cust_id AS custId
+			FROM mari_invest mi
+			INNER JOIN mari_member mm
+			ON mm.m_id = mi.m_id
+			WHERE mi.m_id = #{param1} AND mi.loan_id = #{param2};
+        ]]>
+    </select>
+    
+    <select id="selectLoanUserGrade" resultType="com.crepass.restfulapi.one.domain.OneLoanUserGrade" parameterType="string">
+    	<![CDATA[
+			SELECT IFNULL(cls.s_crepass_grade, 'E') AS lenddoGrade, IFNULL(ml.i_creditpoint_two, '0') AS kcbGrade FROM mari_loan ml
+			LEFT JOIN cpas_lenddo_score cls ON ml.m_id = cls.m_id
+			WHERE ml.i_id = #{param1} ORDER BY s_update_date DESC LIMIT 1;
+        ]]>
+    </select>
+    
+    
+    <!-- API V2 START -->
+    <select id="selectLoanList" resultType="com.crepass.restfulapi.v2.domain.LoansVO" parameterType="com.crepass.restfulapi.v2.domain.PageDTO">
+	    <![CDATA[
+	    	SELECT distinct ml.i_id AS loanid, ml.i_subject AS loanSubject, ml.i_loan_pay AS loanMoney, ml.i_loan_day AS repayTerm
+				, ml.i_repay AS repayWay, mip.i_busin_corp_name AS businCorpName, cla.social_corp AS socialName
+				, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1),'E') AS grade
+				, TRUNCATE((DATE_FORMAT(NOW(), '%Y') - DATE_FORMAT(ml.i_birth,'%Y')+1),-1) AS age
+				, CASE WHEN ml.i_exec_date IS NOT NULL THEN 'Y' ELSE 'N' END AS isLoanExec
+				, ml.i_sex AS gender
+				, IF((SELECT COUNT(ws_id) FROM mari_wishlist mw WHERE mw.loan_id = ml.i_id AND mw.m_id = #{mid}) > 0,'Y','N') AS isBookMark
+				, FLOOR((IFNULL((SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = mip.loan_id), 0) / ml.i_loan_pay) * 100) AS investProgress
+				, mip.i_edu_flag as eduFlag
+			FROM mari_loan ml
+			INNER JOIN mari_member mm ON mm.m_id = ml.m_id
+			INNER JOIN mari_invest_progress mip ON ml.i_id = mip.loan_id
+			LEFT JOIN cpas_loan_add_info cla ON cla.loan_id = ml.i_id
+			LEFT JOIN cpas_lenddo_score cls ON cls.m_id = ml.m_id
+			WHERE mip.i_look IN ('Y','C','D','F') AND ml.i_loanapproval <> 'C' AND mip.loan_id NOT IN (1,29) AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%')
+			AND ml.ca_id IN ('cate05')
+			ORDER BY isLoanExec ASC, CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject, 3),'호)',1) AS UNSIGNED) DESC
+			LIMIT #{pageNum}, #{pageSize}
+		]]>
+	</select>
+	
+<!-- 	200710 이후 삭제예정 -->
+<!-- 	    <select id="selectLoanList2" resultType="com.crepass.restfulapi.v2.domain.LoansVO2" parameterType="com.crepass.restfulapi.v2.domain.PageDTO"> -->
+<!-- 	    <![CDATA[ -->
+<!-- 	    	SELECT ml.i_id AS loanid, ml.i_subject AS loanSubject, ml.i_loan_pay AS loanMoney, ml.i_loan_day AS repayTerm -->
+<!-- 				, ml.i_repay AS repayWay, mip.i_busin_corp_name AS businCorpName, cla.social_corp AS socialName -->
+<!-- 				, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1),'E') AS grade -->
+<!-- 				, TRUNCATE((DATE_FORMAT(NOW(), '%Y') - DATE_FORMAT(ml.i_birth,'%Y')+1),-1) AS age -->
+<!-- 				, CASE WHEN ml.i_exec_date IS NOT NULL THEN 'Y' ELSE 'N' END AS isLoanExec -->
+<!-- 				, ml.i_sex AS gender -->
+<!-- 				, IF((SELECT COUNT(ws_id) FROM mari_wishlist mw WHERE mw.loan_id = ml.i_id AND mw.m_id = #{mid}) > 0,'Y','N') AS isBookMark -->
+<!-- 				, FLOOR((IFNULL((SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = mip.loan_id), 0) / ml.i_loan_pay) * 100) AS investProgress -->
+<!-- 				, mip.i_edu_flag as eduFlag -->
+<!-- 				, ml.i_corp_grade AS corpGrade, ml.ca_id AS categoryId -->
+<!-- 			FROM mari_loan ml -->
+<!-- 			INNER JOIN mari_member mm ON mm.m_id = ml.m_id -->
+<!-- 			INNER JOIN mari_invest_progress mip ON ml.i_id = mip.loan_id -->
+<!-- 			LEFT JOIN cpas_loan_add_info cla ON cla.loan_id = ml.i_id -->
+<!-- 			WHERE mip.i_look IN ('Y','C','D','F') AND ml.i_loanapproval <> 'C' AND mip.loan_id NOT IN (1,29) AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%') -->
+<!-- 			AND ml.i_id NOT IN (SELECT i_id FROM mari_loan ml WHERE ml.ca_id ='cate08' AND ml.i_exec_date IS NULL ) -->
+<!-- 			ORDER BY isLoanExec ASC, FIELD(SUBSTR(ml.i_subject, 2,1), 'C', 'M', 'K'), CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject, 3),'호)',1) AS UNSIGNED) DESC -->
+<!-- 			LIMIT #{pageNum}, #{pageSize} -->
+<!-- 		]]> -->
+<!-- 	</select> -->
+
+
+ <select id="selectLoanList2" resultType="com.crepass.restfulapi.v2.domain.LoansVO2" parameterType="com.crepass.restfulapi.v2.domain.PageDTO">
+	    <![CDATA[
+	    	SELECT ml.i_id AS loanid, ml.i_subject AS loanSubject
+	    		, SUBSTRING_INDEX(SUBSTR(ml.i_subject, 2),'호)',1) AS loanSubjectA
+	    		, LTRIM(SUBSTRING_INDEX(ml.i_subject,'호)',-1)) AS loanSubjectB
+	    		, ml.i_loan_pay AS loanMoney, ml.i_loan_day AS repayTerm
+				, ml.i_repay AS repayWay, mip.i_busin_corp_name AS businCorpName, cla.social_corp AS socialName
+				, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1),'E') AS grade
+				, IFNULL((SELECT s_score FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1), 0) AS scoreLenddo
+				, TRUNCATE((DATE_FORMAT(NOW(), '%Y') - DATE_FORMAT(ml.i_birth,'%Y')+1),-1) AS age
+				, CASE WHEN ml.i_exec_date IS NOT NULL THEN 'Y' ELSE 'N' END AS isLoanExec
+				, ml.i_sex AS gender
+				, IF((SELECT COUNT(ws_id) FROM mari_wishlist mw WHERE mw.loan_id = ml.i_id AND mw.m_id = #{mid}) > 0,'Y','N') AS isBookMark
+				, FLOOR((IFNULL((SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = mip.loan_id), 0) / ml.i_loan_pay) * 100) AS investProgress
+				, mip.i_edu_flag as eduFlag
+				, ml.i_corp_grade AS corpGrade, ml.ca_id AS categoryId
+				, ml.i_year_plus AS yearPlus
+				, i_creditpoint_two AS gradeKCB
+			FROM mari_loan ml
+			INNER JOIN mari_member mm ON mm.m_id = ml.m_id
+			INNER JOIN mari_invest_progress mip ON ml.i_id = mip.loan_id
+			LEFT JOIN cpas_loan_add_info cla ON cla.loan_id = ml.i_id
+			WHERE ml.i_loanapproval <> 'C' AND mip.loan_id NOT IN (1,29) AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%')
+			AND ml.i_id NOT IN (SELECT i_id FROM mari_loan ml WHERE ml.ca_id ='cate08' AND ml.i_exec_date IS NULL )
+		]]>		
+			<choose>
+				<when test="fundingStatus == 'I'.toString()">
+		<![CDATA[		AND  ml.i_exec_date IS NULL			]]>		
+				</when>
+				<when test="fundingStatus == 'F'.toString()">
+		<![CDATA[		AND  ml.i_exec_date IS NOT NULL		]]>		
+				</when>
+			</choose>
+			<choose>
+				<when test="sortType == 'P'.toString()">
+		<![CDATA[		AND ml.ca_id = 'cate05'				]]>	
+				</when>
+				<when test="sortType == 'C'.toString()">
+		<![CDATA[	AND ml.ca_id != 'cate05'				]]>	
+				</when>
+			     <otherwise>
+			     	 
+			     </otherwise>
+			</choose>
+	  
+	  		AND IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1),'E') BETWEEN #{crepassGradeMin} AND #{crepassGradeMax}
+	  		AND ml.i_loan_day BETWEEN #{loanDayMin} AND #{loanDayMax}
+	  		AND i_creditpoint_two BETWEEN #{creditGradeMin} AND #{creditGradeMax}
+	  		AND ml.i_loan_pay BETWEEN #{loanPayMin} AND #{loanPayMax}
+	  
+	  		<choose>
+				<when test="loanRate == '5.5'.toString()">
+					AND ml.i_year_plus = 5.5
+				</when>
+				<when test="loanRate == '7.5'.toString()">
+					AND ml.i_year_plus = 7.5
+				</when>
+			</choose>
+	  
+			<choose>
+				<when test="socialCorpAll == 'N'.toString()">
+  					<choose>
+						<when test="socialCodeList.size != 0">
+				        	AND cla.social_corp IN
+				            <foreach collection="socialCodeList" item="item" index="index" separator="," open="(" close=")">
+							   	<choose>
+							   		<when test="item == 'MB'.toString()"> '무방' </when>
+					        		<when test="item == 'RI'.toString()"> '루트임팩트' </when>
+					        		<when test="item == 'JP'.toString()"> '점프' </when>
+					        		<when test="item == 'ST'.toString()"> '학생독립만세' </when>
+					        		<when test="item == 'FD'.toString()"> '푸드트럭' </when>
+					        		<when test="item == 'SM'.toString()"> '미혼모지원네트워크' </when>
+					        		<when test="item == 'QD'.toString()"> '콰타 드림랩' </when>
+								</choose>
+				            </foreach>
+				     	</when>
+				     <otherwise>
+				     	AND cla.social_corp IS NULL 
+				     </otherwise>
+				    </choose>
+				</when>
+			</choose>
+					 
+		    <choose>
+				<when test="poseCodeList.size != 0">
+		        	AND ml.i_loan_pose IN
+		            <foreach collection="poseCodeList" item="item" index="index" separator="," open="(" close=")">
+					   	<choose>
+					   		<when test="item == 'LIV'.toString()"> '생활비'</when>
+			        		<when test="item == 'DEP'.toString()"> '보증금' </when>
+			        		<when test="item == 'ABR'.toString()"> '유학/연수' </when>
+			        		<when test="item == 'EDU'.toString()"> '교육/훈련' </when>
+			        		<when test="item == 'VOL'.toString()"> '봉사활동참가' </when>
+			        		<when test="item == 'ETC'.toString()"> '기타' </when>
+						</choose>
+		            </foreach>
+		     	</when>
+		     <otherwise>
+ 
+		     </otherwise>
+		    </choose>
+	  
+	  
+			<choose>
+				<when test="sortOrder == 'N'.toString()">
+					<![CDATA[	
+			ORDER BY isLoanExec ASC, FIELD(SUBSTR(ml.i_subject, 2,1), 'C', 'M', 'K'), CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject, 3),'호)',1) AS UNSIGNED) DESC
+					]]>	
+				</when>
+				<when test="sortOrder == 'O'.toString()">
+					<![CDATA[	
+			ORDER BY isLoanExec ASC, FIELD(SUBSTR(ml.i_subject, 2,1), 'C', 'M', 'K'), CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject, 3),'호)',1) AS UNSIGNED) ASC
+					]]>	
+				</when>
+				<when test="sortOrder == 'H'.toString()">
+					<![CDATA[	
+			ORDER BY isLoanExec ASC, ml.i_loan_pay DESC, FIELD(SUBSTR(ml.i_subject, 2,1), 'C', 'M', 'K'), CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject, 3),'호)',1) AS UNSIGNED) DESC
+					]]>	
+				</when>
+				<when test="sortOrder == 'L'.toString()">
+					<![CDATA[	
+			ORDER BY isLoanExec ASC, ml.i_loan_pay ASC, FIELD(SUBSTR(ml.i_subject, 2,1), 'C', 'M', 'K'), CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject, 3),'호)',1) AS UNSIGNED) DESC
+					]]>	
+				</when>
+			</choose>	
+		<![CDATA[		
+			LIMIT #{pageNum}, #{pageSize}
+		]]>
+	</select>
+
+
+
+	<select id="selectLoanListCount2" resultType="int" parameterType="string">
+	 <![CDATA[
+		    	SELECT IFNULL(count(ml.i_id),0) AS loanId
+				FROM mari_loan ml
+				INNER JOIN mari_member mm ON mm.m_id = ml.m_id
+				INNER JOIN mari_invest_progress mip ON ml.i_id = mip.loan_id
+				LEFT JOIN cpas_loan_add_info cla ON cla.loan_id = ml.i_id
+				WHERE ml.i_loanapproval <> 'C' AND mip.loan_id NOT IN (1,29) AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%')
+				AND ml.i_id NOT IN (SELECT i_id FROM mari_loan ml WHERE ml.ca_id ='cate08' AND ml.i_exec_date IS NULL )
+		]]>
+			<choose>
+						<when test="fundingStatus == 'I'.toString()">
+				<![CDATA[		AND  ml.i_exec_date IS NULL			]]>		
+						</when>
+						<when test="fundingStatus == 'F'.toString()">
+				<![CDATA[		AND  ml.i_exec_date IS NOT NULL		]]>		
+						</when>
+					     <otherwise>
+				<![CDATA[				]]>
+					     </otherwise>
+					</choose>
+			
+			<choose>
+				<when test="sortType == 'P'.toString()">
+		<![CDATA[		AND ml.ca_id = 'cate05'				]]>	
+				</when>
+				<when test="sortType == 'C'.toString()">
+		<![CDATA[	AND ml.ca_id != 'cate05'				]]>	
+				</when>
+			     <otherwise>
+			     	 
+			     </otherwise>
+			</choose>
+	  
+	  		AND IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1),'E') BETWEEN #{crepassGradeMin} AND #{crepassGradeMax}
+	  		AND ml.i_loan_day BETWEEN #{loanDayMin} AND #{loanDayMax}
+	  		AND i_creditpoint_two BETWEEN #{creditGradeMin} AND #{creditGradeMax}
+	  		AND ml.i_loan_pay BETWEEN #{loanPayMin} AND #{loanPayMax}
+	  
+	  		<choose>
+				<when test="loanRate == '5.5'.toString()">
+					AND ml.i_year_plus = 5.5
+				</when>
+				<when test="loanRate == '7.5'.toString()">
+					AND ml.i_year_plus = 7.5
+				</when>
+			</choose>
+			<choose>
+				<when test="socialCorpAll == 'N'.toString()">
+  					<choose>
+						<when test="socialCodeList.size != 0">
+				        	AND cla.social_corp IN
+				            <foreach collection="socialCodeList" item="item" index="index" separator="," open="(" close=")">
+							   	<choose>
+							   		<when test="item == 'MB'.toString()"> '무방' </when>
+					        		<when test="item == 'RI'.toString()"> '루트임팩트' </when>
+					        		<when test="item == 'JP'.toString()"> '점프' </when>
+					        		<when test="item == 'ST'.toString()"> '학생독립만세' </when>
+					        		<when test="item == 'FD'.toString()"> '푸드트럭' </when>
+					        		<when test="item == 'SM'.toString()"> '미혼모지원네트워크' </when>
+					        		<when test="item == 'QD'.toString()"> '콰타 드림랩' </when>
+								</choose>
+				            </foreach>
+				     	</when>
+				     <otherwise>
+				     	AND cla.social_corp IS NULL 
+				     </otherwise>
+				    </choose>
+				</when>
+			</choose>
+		    <choose>
+				<when test="poseCodeList.size != 0">
+		        	AND ml.i_loan_pose IN
+		            <foreach collection="poseCodeList" item="item" index="index" separator="," open="(" close=")">
+					   	<choose>
+					   		<when test="item == 'LIV'.toString()"> '생활비'</when>
+			        		<when test="item == 'DEP'.toString()"> '보증금' </when>
+			        		<when test="item == 'ABR'.toString()"> '유학/연수' </when>
+			        		<when test="item == 'EDU'.toString()"> '교육/훈련' </when>
+			        		<when test="item == 'VOL'.toString()"> '봉사활동참가' </when>
+			        		<when test="item == 'ETC'.toString()"> '기타' </when>
+						</choose>
+		            </foreach>
+		     	</when>
+		     <otherwise>
+		     </otherwise>
+		    </choose>
+	</select>
+	
+	<select id="selectLoanListCount" resultType="int">
+		<![CDATA[
+			SELECT COUNT(mip.loan_id) FROM mari_invest_progress mip, mari_loan ml
+	        WHERE mip.loan_id = ml.i_id AND i_loanapproval <> 'C' AND mip.loan_id NOT IN (1,29) AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%');
+        ]]>
+	</select>
+	
+	<select id="selectLoanItem" resultType="com.crepass.restfulapi.v2.domain.LoansVO">
+		<![CDATA[
+			select distinct ml.i_id as loanid,
+				ml.i_subject as loanSubject,
+				ml.i_loan_pay as loanMoney,
+				ml.i_loan_day as repayTerm,
+				ml.i_repay as repayWay,
+				mip.i_busin_corp_name as businCorpName,
+				cla.social_corp as socialName,
+				ifnull((select s_crepass_grade from cpas_lenddo_score where m_id = ml.m_id order by s_update_date desc limit 1),'E') as grade,
+				truncate((date_format(now(),'%Y') - date_format(ml.i_birth,'%Y')+1),-1) as age,
+				case when ml.i_exec_date is not null then 'Y' else 'N' end as isLoanExec,
+				ml.i_sex as gender,
+				if( (select count(*) from mari_wishlist mw where mw.loan_id = ml.i_id and mw.m_id=#{mid}) > 0,'Y','N') as isBookMark,
+				floor((ifnull((select sum(i_pay) from mari_invest where loan_id = mip.loan_id),0) / ml.i_loan_pay)*100) as investProgress
+			from mari_loan ml
+			left join mari_invest_progress mip on mip.loan_id = ml.i_id
+			left join cpas_loan_add_info cla on cla.loan_id = ml.i_id
+			left join cpas_lenddo_score cls on cls.m_id = ml.m_id
+			where ml.i_loanapproval <> 'C' and mip.loan_id = #{loanId};
+		]]>
+	</select>
+	
+	<select id="selectInvestorListCount" resultType="int">
+		<![CDATA[
+			SELECT COUNT(mm.m_id) FROM mari_member mm, mari_seyfert ms WHERE ms.m_id = mm.m_id AND mm.m_level = #{investLv} AND s_accntNo <> '' AND mm.m_id <> #{mid}
+		]]>
+		<if test="keyword != null and keyword != ''.toString()">
+   			AND mm.m_nick = '' AND mm.m_name LIKE CONCAT('%', #{keyword}, '%')
+   		</if>
+	</select>
+	
+	<select id="selectInvestorList" resultType="hashmap">
+		<![CDATA[
+			SELECT mm.m_id AS mid, IF(mm.m_nick <> '', mm.m_nick, mm.m_name) AS investor, mm.m_invest_comment AS message, m_profile AS mProfile
+		        , (SELECT COUNT(mi.m_id) FROM mari_invest mi, mari_loan ml WHERE ml.i_id = mi.loan_id AND mi.m_id = ms.m_id AND ml.i_loanapproval <> 'C') AS investCount
+		        , IFNULL((SELECT SUM(mi.i_pay) FROM mari_invest mi, mari_loan ml WHERE ml.i_id = mi.loan_id AND mi.m_id = ms.m_id AND ml.i_loanapproval <> 'C'), 0) AS investMoney
+	        FROM mari_member mm, mari_seyfert ms 
+	        WHERE ms.m_id = mm.m_id AND mm.m_level = #{investLv} AND s_accntNo <> '' AND mm.m_id <> #{mid} AND mm.m_id IN (SELECT mi.m_id FROM mari_invest mi)
+        ]]>
+        <if test="keyword != null and keyword != ''.toString()">
+   			AND mm.m_nick = '' AND mm.m_name LIKE CONCAT('%', #{keyword}, '%')
+   		</if>
+	        ORDER BY mm.m_name
+	        LIMIT #{pageNum}, #{pageSize};
+	</select>
+	
+	<select id="selectInvestItemList" resultType="com.crepass.restfulapi.v2.domain.InvestReplyList">
+		<![CDATA[
+			SELECT mi.loan_id AS loanId, ml.i_subject AS loanSubject, ml.i_loan_pay AS investMoney, ml.i_loan_day AS repayTerm
+				, ml.i_repay as repayWay, mip.i_busin_corp_name AS businCorpName, IFNULL(clai.social_corp, '') AS socialName
+				, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1),'E') AS grade
+				, TRUNCATE((DATE_FORMAT(NOW(),'%Y') - SUBSTRING(ml.i_birth, 1, 4)) + 1, -1) AS age
+				, IF(ml.i_exec_date IS NOT NULL, 'Y', 'N') AS isLoanExec, ml.i_sex as gender, IF(mw.ws_id IS NOT NULL,'Y','N') AS isBookMark
+				, FLOOR(mi.i_pay / (SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = ml.i_id) * 100) AS investProgress
+				, (SELECT COUNT(m_no) FROM cpas_invest_comment WHERE (m_id = mi.m_id OR m_target = 'N') AND loan_id = ml.i_id AND m_delete = 'N') AS replyCount
+				, mip.i_edu_flag as eduFlag
+			FROM mari_invest mi 
+			INNER JOIN mari_loan ml ON ml.i_id = mi.loan_id
+			INNER JOIN mari_invest_progress mip ON mip.loan_id = ml.i_id
+			INNER JOIN cpas_loan_add_info clai ON clai.loan_id = ml.i_id
+			LEFT JOIN mari_wishlist mw ON mw.m_id = mi.m_id AND mw.loan_id = ml.i_id
+			WHERE ml.i_loanapproval <> 'C' AND mi.m_id = #{mid}
+			AND CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) <> 0
+			ORDER BY FIELD(isLoanExec, 'N') DESC, CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) DESC
+			LIMIT #{pageNum}, #{pageSize};
+		]]>
+	</select>
+	
+	<select id="selectInvestItemList2" resultType="com.crepass.restfulapi.v2.domain.InvestReplyList2">
+		<![CDATA[
+			SELECT mi.loan_id AS loanId, ml.i_subject AS loanSubject
+				, SUBSTRING_INDEX(SUBSTR(ml.i_subject, 2),'호)',1) AS loanSubjectA
+	    		, LTRIM(SUBSTRING_INDEX(ml.i_subject,'호)',-1)) AS loanSubjectB
+	    		, ml.i_loan_pay AS loanMoney, ml.i_loan_day AS repayTerm
+				, ml.i_repay as repayWay, mip.i_busin_corp_name AS businCorpName, IFNULL(clai.social_corp, '') AS socialName
+				, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1),'E') AS grade
+				, IFNULL((SELECT s_score FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1), 0) AS scoreLenddo
+				, TRUNCATE((DATE_FORMAT(NOW(),'%Y') - SUBSTRING(ml.i_birth, 1, 4)) + 1, -1) AS age
+				, IF(ml.i_exec_date IS NOT NULL, 'Y', 'N') AS isLoanExec, ml.i_sex as gender, IF(mw.ws_id IS NOT NULL,'Y','N') AS isBookMark
+				, FLOOR(mi.i_pay / (SELECT SUM(i_pay) FROM mari_invest WHERE loan_id = ml.i_id) * 100) AS investProgress
+				, (SELECT COUNT(m_no) FROM cpas_invest_comment WHERE (m_id = mi.m_id OR m_target = 'N') AND loan_id = ml.i_id AND m_delete = 'N') AS replyCount
+				, mip.i_edu_flag as eduFlag, ml.i_corp_grade AS corpGrade, ml.ca_id AS categoryId
+			FROM mari_invest mi 
+			INNER JOIN mari_loan ml ON ml.i_id = mi.loan_id
+			INNER JOIN mari_invest_progress mip ON mip.loan_id = ml.i_id
+			INNER JOIN cpas_loan_add_info clai ON clai.loan_id = ml.i_id
+			LEFT JOIN mari_wishlist mw ON mw.m_id = mi.m_id AND mw.loan_id = ml.i_id
+			WHERE ml.i_loanapproval <> 'C' AND mi.m_id = #{mid}
+			AND CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) <> 0
+			ORDER BY FIELD(isLoanExec, 'N') DESC, CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) DESC
+			LIMIT #{pageNum}, #{pageSize};
+		]]>
+	</select>
+	
+	<select id="selectInvestItemListCount" resultType="int">
+		<![CDATA[
+			SELECT COUNT(mi.loan_id)
+			FROM mari_invest mi, mari_loan ml 
+			WHERE ml.i_id = mi.loan_id AND ml.i_loanapproval <> 'C' AND mi.m_id = #{mid} order by mi.loan_id;
+		]]>	
+	</select>
+	
+	<select id="selectInvestListCount" resultType="int">
+		<choose>
+			<!-- 전체 -->
+			<when test="investCode == 'A'.toString()">
+				<![CDATA[
+					SELECT COUNT(mi.loan_id) 
+					FROM mari_invest mi
+					INNER JOIN mari_loan ml ON ml.i_id = mi.loan_id AND ml.i_loanapproval <> 'C' AND mi.m_id = #{mid}
+					WHERE ml.i_subject LIKE CONCAT('%', #{keyword}, '%');
+				]]>
+			</when>
+			
+			<!-- 펀딩중 -->
+			<when test="investCode == 'S'.toString()">
+				<![CDATA[
+					SELECT COUNT(mi.loan_id)
+					FROM mari_invest mi
+					INNER JOIN mari_loan ml ON ml.i_id = mi.loan_id AND ml.i_exec_date is null AND ml.i_loanapproval <> 'C' AND mi.m_id = #{mid}
+					WHERE ml.i_subject LIKE CONCAT('%', #{keyword}, '%');
+				]]>
+			</when>
+			
+			<!-- 정산중 -->
+			<when test="investCode == 'R'.toString()">
+				<![CDATA[
+					SELECT COUNT(mi.m_id)
+					FROM mari_invest mi, mari_loan ml, cpas_payment_schedule cps
+					WHERE mi.m_id = #{mid} 
+					AND ml.i_id = mi.loan_id
+					AND cps.m_id = mi.m_id AND cps.loan_id = mi.loan_id AND cps.p_count = ml.i_loan_day AND cps.p_pay_status = 'N'
+					AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%');
+			   ]]>
+			</when>
+			
+			<!-- 정산완료 -->
+			<when test="investCode == 'P'.toString()">
+				<![CDATA[
+					SELECT COUNT(mi.m_id)
+					FROM mari_invest mi, mari_loan ml, cpas_payment_schedule cps
+					WHERE mi.m_id = #{mid}
+					AND ml.i_id = mi.loan_id
+					AND cps.m_id = mi.m_id AND cps.loan_id = mi.loan_id AND cps.p_count = ml.i_loan_day AND cps.p_pay_status <> 'N'
+					AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%');
+			   ]]>
+			</when>
+		</choose>
+	</select>
+	
+	<select id="selectInvestList" resultType="hashmap">
+		<choose>
+			
+			<!-- 전체 -->
+			<when test="investCode == 'A'.toString()">
+				<![CDATA[
+					SELECT ml.i_id AS loanId, ml.i_subject AS subject, ml.i_loan_day AS repayTerm, ml.i_repay AS repayWay
+						, (SELECT COUNT(cim.loan_id) FROM cpas_invest_comment cim WHERE cim.m_id = mi.m_id AND cim.loan_id = mi.loan_id) AS commentCount
+				        , IF(ml.loan_step4 = 'N', 'S', IF((SELECT DISTINCT p_pay_status FROM cpas_payment_schedule WHERE loan_id = ml.i_id AND p_count = i_loan_day) = 'N', 'R', 'P')) AS investCode
+					FROM mari_invest mi
+					INNER JOIN mari_loan ml ON ml.i_id = mi.loan_id AND ml.i_loanapproval <> 'C'
+					WHERE ml.i_loanapproval <> 'C' AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%') AND mi.m_id = #{mid}
+					ORDER BY FIELD(investCode, 'P', 'R', 'S') DESC, CAST(SUBSTRING_INDEX(SUBSTR(subject,3),'호)',1) AS UNSIGNED) DESC
+					LIMIT #{pageNum}, #{pageSize};
+ 				]]>
+			</when>
+			
+			<!-- 펀딩중 -->
+			<when test="investCode == 'S'.toString()">
+				<![CDATA[
+					SELECT ml.i_id AS loanId, ml.i_subject AS subject, ml.i_loan_day AS repayTerm, ml.i_repay AS repayWay
+					, (SELECT COUNT(mc.loan_id) FROM cpas_invest_comment mc WHERE mc.m_id = mi.m_id AND mc.loan_id = mi.loan_id) AS commentCount, 'S' AS investCode
+					FROM mari_invest mi
+					INNER JOIN mari_loan ml ON ml.i_id = mi.loan_id 
+					WHERE ml.loan_step4 = 'N' AND ml.i_exec_date IS NULL AND ml.i_loanapproval <> 'C' AND mi.m_id = #{mid}
+					AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%')
+					AND CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) <> 0
+					ORDER BY CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) DESC
+					LIMIT #{pageNum}, #{pageSize};
+				]]>
+			</when>
+			
+			<!-- 정산중 -->
+			<when test="investCode == 'R'.toString()">
+				<![CDATA[
+					SELECT mi.loan_id AS loanId, ml.i_subject AS subject, ml.i_loan_day AS repayTerm, ml.i_repay AS repayWay
+					, (SELECT COUNT(cim.loan_id) FROM cpas_invest_comment cim WHERE cim.m_id = mi.m_id AND cim.loan_id = mi.loan_id) AS commentCount, 'R' AS investCode
+					FROM mari_invest mi, mari_loan ml, cpas_payment_schedule cps
+					WHERE mi.m_id = #{mid} AND ml.i_id = mi.loan_id
+					AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%')
+					AND cps.m_id = mi.m_id AND cps.loan_id = mi.loan_id AND cps.p_count = ml.i_loan_day AND cps.p_pay_status = 'N'
+					AND CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) <> 0
+					ORDER BY CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) DESC
+				    LIMIT #{pageNum}, #{pageSize};
+				]]>
+			</when>
+			
+			<!-- 정산완료 -->
+			<when test="investCode == 'P'.toString()">
+				<![CDATA[
+					SELECT mi.loan_id AS loanId, ml.i_subject AS subject, ml.i_loan_day AS repayTerm, ml.i_repay AS repayWay
+					, (SELECT COUNT(cim.loan_id) FROM cpas_invest_comment cim WHERE cim.m_id = mi.m_id AND cim.loan_id = mi.loan_id) AS commentCount, 'P' AS investCode
+					FROM mari_invest mi, mari_loan ml, cpas_payment_schedule cps
+					WHERE mi.m_id = #{mid} AND ml.i_id = mi.loan_id
+					AND ml.i_subject LIKE CONCAT('%', #{keyword}, '%')
+					AND cps.m_id = mi.m_id AND cps.loan_id = mi.loan_id AND cps.p_count = ml.i_loan_day AND cps.p_pay_status <> 'N'
+				    AND CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) <> 0
+					ORDER BY CAST(SUBSTRING_INDEX(SUBSTR(ml.i_subject,3),'호)',1) AS UNSIGNED) DESC
+				    LIMIT #{pageNum}, #{pageSize};
+				]]>
+			</when>
+		</choose>
+	</select>
+	
+	<select id="selectInvestItemDetail" resultType="com.crepass.restfulapi.v2.domain.InvestDetailItem" parameterType="string">
+		SELECT ml.i_businessname AS univName, ml.i_attendinguse AS jobState, mm.m_birth AS birth, mm.m_sex AS gender, ml.i_officeworkers AS repayJob, i_loan_pose AS loanPose
+			, i_creditpoint_two AS gradeKCB, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1), 'E') AS gradeLenddo
+			, i_plan AS plan
+			, mip.i_summary AS attention, mip.i_busin_corp_name AS businessCorp
+			, (SELECT social_corp FROM cpas_loan_add_info WHERE loan_id = ml.i_id) AS socialCorp, mip.i_edu_flag as eduFlag
+		FROM mari_member mm, mari_loan ml, mari_invest_progress mip
+		WHERE ml.i_id = #{loanId} AND mm.m_id = ml.m_id AND mip.loan_id = ml.i_id;
+	</select>
+		
+	<select id="selectInvestItemDetail2" resultType="com.crepass.restfulapi.v2.domain.InvestDetailItem2" parameterType="string">
+		SELECT ml.i_businessname AS univName, ml.i_attendinguse AS jobState, mm.m_birth AS birth, mm.m_sex AS gender, ml.i_officeworkers AS repayJob, i_loan_pose AS loanPose
+			, i_creditpoint_two AS gradeKCB, ml.i_creditpoint_one AS scoreKCB
+			, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1), 'E') AS gradeLenddo
+			, IFNULL((SELECT s_score FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1), 0) AS scoreLenddo
+			, i_plan AS plan
+			, mip.i_summary AS attention, mip.i_busin_corp_name AS businessCorp
+			, (SELECT social_corp FROM cpas_loan_add_info WHERE loan_id = ml.i_id) AS socialCorp, mip.i_edu_flag as eduFlag
+			, ml.i_corp_grade AS corpGrade, ml.ca_id AS categoryId
+		FROM mari_member mm, mari_loan ml, mari_invest_progress mip
+		WHERE ml.i_id = #{loanId} AND mm.m_id = ml.m_id AND mip.loan_id = ml.i_id;
+	</select>
+	
+	<select id="selectDebtById2" resultType="string" parameterType="string">
+        SELECT i_debt_list FROM mari_debt WHERE loan_id = #{loanId} ORDER BY i_no DESC LIMIT 1;
+    </select>
+    
+    <select id="selectInvestBundleList" resultType="com.crepass.restfulapi.v2.domain.InvestBundleList" parameterType="string">
+	    <![CDATA[
+			SELECT ml.i_id AS loanid, ml.i_subject AS loanSubject
+				, SUBSTRING_INDEX(SUBSTR(ml.i_subject, 2),'호)',1) AS loanSubjectA
+	    		, LTRIM(SUBSTRING_INDEX(ml.i_subject,'호)',-1)) AS loanSubjectB
+				, ml.i_loan_pay AS loanMoney
+				, mip.i_busin_corp_name AS corpName, cla.social_corp AS socialName
+			    , IF(mw.ws_id IS NULL, 'N', 'Y') AS isBookMark
+				, (mip.i_invest_max * 0.01) AS investMaxRate, mip.i_edu_flag as eduFlag
+			FROM mari_wishlist mw
+			INNER JOIN mari_loan ml ON ml.i_id = mw.loan_id
+			INNER JOIN mari_member mm ON mm.m_id = ml.m_id
+			INNER JOIN mari_invest_progress mip ON ml.i_id = mip.loan_id
+			LEFT JOIN cpas_loan_add_info cla ON cla.loan_id = ml.i_id
+			LEFT JOIN cpas_lenddo_score cls ON cls.m_id = ml.m_id
+			WHERE ml.i_loanapproval <> 'C' AND ml.loan_step4 = 'N'
+			AND ml.i_id NOT IN (SELECT A.loan_id FROM (SELECT mi.loan_id, CAST(IFNULL((SUM(mi.i_pay) / mi.i_loan_pay) * 100, 0) AS SIGNED) AS ratio FROM mari_loan ml
+				LEFT JOIN mari_invest mi ON mi.loan_id = ml.i_id WHERE ml.i_loanapproval <> 'C' AND ml.loan_step4 = 'N'
+				GROUP BY ml.i_id) A WHERE A.ratio = '100')
+			AND mw.ws_id IS NOT NULL AND mw.m_id = #{mid};
+		]]>
+    </select>
+<!--     AND ml.i_id NOT IN (SELECT loan_id FROM cpas_invest_stack WHERE m_id = mw.m_id AND is_batch = 'N') -->
+    
+    <insert id="insertInvestStack" parameterType="string">
+    	<![CDATA[
+			INSERT INTO cpas_invest_stack(loan_id, m_id, i_pay)
+			VALUES(#{loanId}, #{mid}, #{iPay});
+        ]]>
+    </insert>
+    
+    <select id="selectInvestScheduleList" resultType="com.crepass.restfulapi.v2.domain.InvestScheduleItem" parameterType="string">
+	    <![CDATA[
+			SELECT cps.p_count AS count, cps.p_ln_amount + cps.p_interest_amount AS monthPayment, cps.p_ln_amount AS inAmount
+				, cps.p_interest_amount AS interest, cps.p_delq_amount AS overdue, cps.p_fee AS fee, cps.p_tax AS tax, cps.p_tax_local AS taxLocal
+				, crs.r_delq_state AS overdueState, cps.p_pay_status AS paymentState
+				, (SELECT i_loan_day FROM mari_loan WHERE i_id = cps.loan_id) AS totCount
+			FROM cpas_payment_schedule cps, cpas_repayment_schedule crs
+			WHERE crs.loan_id = cps.loan_id AND crs.r_count = cps.p_count
+			AND cps.m_id = #{mid} AND cps.loan_id = #{loanId} AND cps.p_pay_status <> 'P'
+			UNION
+			SELECT cpp.p_count AS count, (cpp.p_pay_amount + cpp.p_fee + cpp.p_tax + cpp.p_tax_local) AS monthPayment
+				, (cpp.p_pay_amount + cpp.p_fee + cpp.p_tax + cpp.p_tax_local) - cpp.p_interest AS inAmount
+				, cpp.p_interest - (SELECT (p_overdue + p_prepay) * (SELECT i_pay/i_loan_pay FROM mari_invest WHERE loan_id = cpp.loan_id AND m_id = cpp.m_id) FROM cpas_prepayment WHERE loan_id = cpp.loan_id) AS interest
+				, (SELECT (p_overdue + p_prepay) * (SELECT i_pay/i_loan_pay FROM mari_invest WHERE loan_id = cpp.loan_id AND m_id = cpp.m_id) FROM cpas_prepayment WHERE loan_id = cpp.loan_id)
+				, cpp.p_fee AS fee, cpp.p_tax AS tax, cpp.p_tax_local AS taxLocal
+				, crs.r_delq_state AS overdueState, 'P'
+				, (SELECT i_loan_day FROM mari_loan WHERE i_id = cpp.loan_id) AS totCount
+			FROM cpas_prepayment_provide cpp, cpas_repayment_schedule crs WHERE cpp.m_id = #{mid} AND cpp.loan_id = #{loanId}
+			AND crs.loan_id = cpp.loan_id AND crs.r_count = cpp.p_count;
+		]]>
+    </select>
+    
+    <select id="selectInvestScheduleInfo" resultType="com.crepass.restfulapi.v2.domain.InvestScheduleInfo" parameterType="string">
+	    <![CDATA[
+			SELECT ml.i_subject AS loanSubject, mi2.i_pay AS investPay
+				, (SELECT IFNULL(TRUNCATE(((SUM(interest) - (SUM(p_tax) + SUM(p_tax_local) + SUM(p_fee))) / mi.i_pay) * 100, 2), 0)
+					FROM (SELECT cps.p_interest_amount + cps.p_delq_amount AS interest, cps.p_tax, cps.p_tax_local, cps.p_fee, loan_id, m_id
+					FROM cpas_payment_schedule cps WHERE cps.p_pay_status = 'C'
+					UNION
+					SELECT p_interest, p_tax, p_tax_local, p_fee, loan_id, m_id
+					FROM cpas_prepayment_provide) T
+					INNER JOIN mari_invest mi ON mi.loan_id = T.loan_id AND mi.m_id = T.m_id
+					WHERE T.loan_id = mi2.loan_id AND T.m_id = mi2.m_id) AS profitsRate
+				, IFNULL((SELECT SUM(p_ln_amount) FROM cpas_payment_schedule WHERE loan_id = mi2.loan_id AND m_id = mi2.m_id AND p_pay_status <> 'N'), 0) AS iSchePaySum
+			FROM mari_invest mi2, mari_loan ml
+			WHERE ml.i_id = mi2.loan_id AND mi2.m_id = #{mid} AND mi2.loan_id = #{loanId};
+		]]>
+    </select>
+    
+    <select id="selectInvestPaymentHistoryItem" resultType="com.crepass.restfulapi.v2.domain.PaymentHistoryItem">
+	    <![CDATA[
+			SELECT trx_amt AS trxAmt, trx_type AS trxType, DATE_FORMAT(created_date, '%Y-%m-%d %H:%i:%s') AS createDt FROM cpas_trx_log WHERE type_flag = 'I' AND m_id = #{mid}
+			UNION
+			SELECT trx_amt AS trxAmt, 'WW' AS trxType, DATE_FORMAT(created_date, '%Y-%m-%d %H:%i:%s') AS createDt FROM cpas_withdraw_trx WHERE m_id = #{mid} AND type_flag = 'I' AND trx_flag = 'N'
+			ORDER BY createDt DESC
+			LIMIT #{pageNum}, #{pageSize};
+		]]>
+    </select>
+    
+    <!--     		자동투자 빼기 전 200228이후 삭제 예정-->
+<!--         <select id="selectInvestPaymentHistoryItem" resultType="com.crepass.restfulapi.v2.domain.PaymentHistoryItem"> -->
+<!-- 	    <![CDATA[ -->
+<!-- 			SELECT trx_amt AS trxAmt, trx_type AS trxType, DATE_FORMAT(created_date, '%Y-%m-%d %H:%i:%s') AS createDt FROM cpas_trx_log WHERE type_flag = 'I' AND m_id = #{mid} -->
+<!-- 			UNION -->
+<!-- 			SELECT trx_amt AS trxAmt, 'WW' AS trxType, DATE_FORMAT(created_date, '%Y-%m-%d %H:%i:%s') AS createDt FROM cpas_withdraw_trx WHERE m_id = #{mid} AND type_flag = 'I' AND trx_flag = 'N' -->
+<!-- 			UNION -->
+<!-- 			SELECT ml.i_loan_pay AS trxAmt, 'WI' AS trxType, DATE_FORMAT(mi.i_modidatetime, '%Y-%m-%d %H:%i:%s') AS createDt -->
+<!-- 			FROM mari_invest mi, mari_loan ml -->
+<!-- 			WHERE mi.m_id = #{mid} -->
+<!-- 			AND ml.i_id = mi.loan_id AND ml.i_loanapproval <> 'C' AND ml.loan_step4 = 'N' -->
+<!-- 			ORDER BY createDt DESC -->
+<!-- 			LIMIT #{pageNum}, #{pageSize}; -->
+<!-- 		]]> -->
+<!--     </select> -->
+    
+    <select id="selectInvestPaymentHistoryItemSize" resultType="int" parameterType="string">
+	    <![CDATA[
+			SELECT COUNT(*) FROM (SELECT trx_amt AS trxAmt, trx_type AS trxType, DATE_FORMAT(created_date, '%Y-%m-%d %H:%i:%s') AS createDt FROM cpas_trx_log WHERE type_flag = 'I' AND m_id = #{mid}
+			UNION
+			SELECT trx_amt AS trxAmt, 'WW' AS trxType, DATE_FORMAT(created_date, '%Y-%m-%d %H:%i:%s') AS createDt FROM cpas_withdraw_trx WHERE m_id = #{mid} AND type_flag = 'I' AND trx_flag = 'N'
+			) A;
+		]]>
+    </select>
+    
+<!--     		자동투자 빼기 전 200228이후 삭제 예정-->
+<!--         <select id="selectInvestPaymentHistoryItemSize" resultType="int" parameterType="string"> -->
+<!-- 	    <![CDATA[ -->
+<!-- 			SELECT COUNT(*) FROM (SELECT trx_amt AS trxAmt, trx_type AS trxType, DATE_FORMAT(created_date, '%Y-%m-%d %H:%i:%s') AS createDt FROM cpas_trx_log WHERE type_flag = 'I' AND m_id = #{mid} -->
+<!-- 			UNION -->
+<!-- 			SELECT trx_amt AS trxAmt, 'WW' AS trxType, DATE_FORMAT(created_date, '%Y-%m-%d %H:%i:%s') AS createDt FROM cpas_withdraw_trx WHERE m_id = #{mid} AND type_flag = 'I' AND trx_flag = 'N' -->
+<!-- 			UNION -->
+<!-- 			SELECT ml.i_loan_pay AS trxAmt, 'WI' AS trxType, DATE_FORMAT(mi.i_modidatetime, '%Y-%m-%d %H:%i:%s') AS createDt -->
+<!-- 			FROM mari_invest mi, mari_loan ml -->
+<!-- 			WHERE mi.m_id = #{mid} -->
+<!-- 			AND ml.i_id = mi.loan_id AND ml.i_loanapproval <> 'C' AND ml.loan_step4 = 'N') A; -->
+<!-- 		]]> -->
+<!--     </select> -->
+    
+    <select id="selectInvestPaymentHistoryInfo" resultType="com.crepass.restfulapi.v2.domain.PaymentHistoryInfo" parameterType="string">
+	    <![CDATA[
+			SELECT ms.s_accntNo AS accntNo, cbc.b_name AS bankName
+			FROM mari_seyfert ms, cpas_bank_code cbc
+			WHERE ms.m_id = #{mid}
+			AND cbc.b_code = ms.s_bnkCd;
+		]]>
+    </select>
+    
+    <select id="selectInvestAutoDivision2" resultType="com.crepass.restfulapi.v2.domain.InvestAutoSplit" parameterType="string">
+    	<![CDATA[
+			SELECT a_id as aid, m_id as mid, a_limit_loan as limitLoan
+			, a_limit_month as limitMonth, a_agreed_yn as agreedYN
+            , (SELECT ciac.a_onoff FROM cpas_invest_auto ciac WHERE ciac.m_id = cia.m_id ORDER BY ciac.a_update_date DESC LIMIT 1) as isActivate
+			FROM cpas_invest_auto cia
+			WHERE m_id = #{param1}
+			ORDER BY a_update_date DESC LIMIT 1;
+        ]]>
+    </select>
+
+    <select id="selectRecentRegTime" resultType="string" parameterType="string">
+	    <![CDATA[
+			SELECT IFNULL(max(mi.i_regdatetime),'0000-00-00') AS regTime
+			FROM mari_invest mi, mari_loan ml 
+			WHERE ml.i_id = mi.loan_id AND ml.i_loanapproval <> 'C' AND mi.m_id = #{mid}
+		]]>
+    </select>
+    
+	<select id="selectRecentInvestTime" resultType="string" parameterType="string">
+	    <![CDATA[
+			SELECT IFNULL(max(ctl.created_date),'0000-00-00') AS regTime
+            FROM cpas_trx_log ctl 
+            WHERE ctl.m_id = #{mid}
+		]]>
+    </select>
+
+    <update id="updateInvestList" parameterType="string">
+         <![CDATA[
+            UPDATE cpas_view_status
+			SET invest_list_time = now()
+			WHERE m_id =  #{mid};  
+         ]]>
+    </update>  
+
+    <update id="updateInvestTran" parameterType="string">
+         <![CDATA[
+            UPDATE cpas_view_status
+			SET invest_tran_time = now()
+			WHERE m_id = #{mid};
+         ]]>
+    </update>  
+
+	<select id="selectInvestingTotalCount" resultType="int" parameterType="string">
+	    <![CDATA[
+			SELECT COUNT(mi.loan_id) AS count
+			FROM mari_invest mi
+	        INNER JOIN mari_loan ml ON mi.loan_id = ml.i_id
+			WHERE loan_id IN (SELECT DISTINCT loan_id FROM cpas_payment_schedule WHERE p_pay_status = 'N')
+	        AND mi.m_id = #{mid} AND ml.i_look NOT IN ('R' , 'B', 'S');
+		]]>
+    </select>
+    
+    <select id="selectInvestLevel" resultType="string" parameterType="string">
+	    <![CDATA[
+			select m_level as mLevel from mari_member where m_id = #{param1};
+		]]>
+    </select>
+    
+    <select id="selectInvestTotalAmount" resultType="string" parameterType="string">
+	    <![CDATA[
+			SELECT IFNULL(sum(i_pay),0) AS iPay FROM mari_invest WHERE m_id = #{param1};
+		]]>
+    </select>
+    <select id="selectInvestLimitation" resultType="string" parameterType="string">
+	    <![CDATA[
+			SELECT 
+			    IFNULL(CASE 
+			    WHEN ((SELECT m_level FROM mari_member WHERE m_id = #{param1} LIMIT 1) = 1) THEN i_maximum
+			    WHEN ((SELECT m_level FROM mari_member WHERE m_id = #{param1} LIMIT 1) = 2) THEN i_maximum_v
+				WHEN ((SELECT m_level FROM mari_member WHERE m_id = #{param1} LIMIT 1) = 3) THEN i_maximum_pro
+				WHEN ((SELECT m_level FROM mari_member WHERE m_id = #{param1} LIMIT 1) = 4) THEN i_maximum_in
+			    END,0) AS maximum
+			FROM mari_inset mi
+			LIMIT 1;
+		]]>
+    </select>
+    <select id="selectUsedToInvest" resultType="string" parameterType="string">
+	    <![CDATA[
+			SELECT IFNULL(SUM(i_pay),0) AS iPay
+			FROM mari_invest
+			WHERE user_id = #{param1} AND m_id = #{param2};
+		]]>
+    </select>
+    
+    <select id="selectInvestReturnedPayAmount" resultType="string" parameterType="string">
+	    <![CDATA[
+			 SELECT
+                    (SELECT IFNULL(sum(p_ln_amount),0) FROM cpas_payment_schedule WHERE m_id = #{param1}
+                    AND p_pay_status='C')
+                                        +
+                    (SELECT IFNULL(sum(p_pay_amount-p_interest-p_fee-p_tax-p_tax_local),0)
+                    FROM cpas_prepayment_provide cpp
+                    WHERE m_id = #{param1}) AS returnedPay
+                    ;
+                    
+		]]>
+    </select>
+</mapper>

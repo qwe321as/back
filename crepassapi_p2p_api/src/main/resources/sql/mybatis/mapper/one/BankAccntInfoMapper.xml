@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.BankAccntInfoMapper">
+    
+    <select id="selectBankAccntInfo" resultType="com.crepass.restfulapi.one.domain.OneBankAccountInfo" parameterType="string">
+        SELECT b_code as bankCode, b_name as bankName
+		FROM cpas_bank_code
+		WHERE b_use_yn = 'Y';
+    </select>
+
+	<!-- API V2 START -->
+	<update id="updateMemberBankInfo" parameterType="com.crepass.restfulapi.v2.domain.MemberInvestInfo">
+		<![CDATA[
+			UPDATE mari_member
+			SET m_my_bankcode = #{bankCode}, m_my_bankname = #{bankAccntName}, m_my_bankacc = #{bankAccntNum}, m_bankname = #{bankName}
+			WHERE m_id = #{mid};
+		]]>
+	</update>
+    
+    <select id="selectBankAccntBalance" resultType="string" parameterType="string">
+        SELECT (SELECT IFNULL((SELECT SUM(trx_amt) FROM cpas_trx_log WHERE m_id = #{mid} AND type_flag = 'I' AND trx_type = 'D')
+		- IFNULL((SELECT SUM(trx_amt) FROM cpas_trx_log WHERE m_id = #{mid} AND type_flag = 'I' AND trx_type = 'W'), 0), 0))  AS trxInvestAmt
+    </select>
+    
+    <select id="selectWithdrawBankInfo" resultType="com.crepass.restfulapi.v2.domain.WithdrawBankInfo" parameterType="string">
+        SELECT m_my_bankcode AS bankCode, m_bankname AS bankName, m_my_bankname AS bankAccntName, m_my_bankacc AS bankAccntNum
+		FROM mari_member WHERE m_id = #{mid};
+    </select>    
+</mapper>

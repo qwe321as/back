@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.one.dao.StatisticsMapper">
+
+    <!-- <select id="selectStatisticsById" resultType="com.crepass.restfulapi.one.domain.OneStatistics" parameterType="string">
+        SELECT IFNULL(saveLoanAmt, 0) as saveLoanAmt
+                , IFNULL(savePayAmt, 0) as savePayAmt
+                , IFNULL(avgProfSum/avgProfCnt, 0) as avgProfAmt
+                , IFNULL(saveLoanAmt-savePayAmt, 0) as loanBalance
+                , IFNULL(savePayCnt/investCnt*100, 0) as delqRate
+                , defaultRate
+                , trAmt
+                , wLastDateTime
+        FROM (
+            select (SELECT SUM(i_loan_pay) FROM mari_loan WHERE i_loanapproval='Y') as saveLoanAmt
+			, (SELECT SUM(p_ln_amount + p_interest_amount) FROM mari_order mo LEFT JOIN cpas_payment_schedule cps ON mo.loan_id = cps.loan_id AND mo.o_count = cps.p_count WHERE mo.o_status != '연체') as savePayAmt
+			, (SELECT SUM(i_year_plus) FROM mari_loan WHERE i_loanapproval='Y') as avgProfSum
+			, (SELECT COUNT(i_year_plus) FROM mari_loan WHERE i_loanapproval='Y') as avgProfCnt
+			, (SELECT COUNT(DISTINCT loan_id) FROM mari_order WHERE o_status='연체') as savePayCnt
+			, (SELECT COUNT(loan_step4) FROM mari_loan WHERE loan_step4 = 'Y') as investCnt
+			, ( SELECT i_default_rates FROM mari_inset ) as defaultRate
+                    , m_emoney as trAmt
+                    , (select max(w_last) from mari_write WHERE w_table = 'notice' order by w_datetime desc limit 1) as wLastDateTime
+            from mari_member mm
+            where m_id = #{param1}
+        ) TB;
+    </select> -->
+    <select id="selectStatisticsById" resultType="com.crepass.restfulapi.one.domain.OneStatistics" parameterType="string">
+        SELECT cls.tot_loan_amt AS saveLoanAmt, cls.tot_repay_amt AS savePayAmt, cls.tot_balance_amt AS loanBalance
+		, cls.avg_prof_rate AS avgProfAmt, cls.overdue_rate AS delqRate, cls.default_rate AS defaultRate, mm.m_emoney as trAmt
+		, (SELECT MAX(w_last) FROM mari_write WHERE w_table = 'notice' ORDER BY w_datetime DESC LIMIT 1) as wLastDateTime
+		FROM mari_member mm, cpas_loan_status cls 
+        WHERE m_id = #{param1} 
+        AND date_format(cls.created_dt,'%Y-%m') = date_format(NOW(),'%Y-%m')
+        ORDER BY cls.created_dt ASC LIMIT 1;
+    </select>
+    
+    <!-- <select id="selectStatisticsWebById" resultType="com.crepass.restfulapi.one.domain.OneStatistics" parameterType="string">
+        SELECT IFNULL(saveLoanAmt, 0) as saveLoanAmt, IFNULL(savePayAmt, 0) as savePayAmt, (IFNULL(saveLoanAmt, 0) - IFNULL(savePayAmt, 0)) as loanBalance
+		, IFNULL(IFNULL(avgProfSum, 0) / IFNULL(avgProfCnt, 0), 0) as avgProfAmt, IFNULL((savePayCnt/investCnt)*100, 0) as delqRate, defaultRate
+		FROM (SELECT (SELECT SUM(i_loan_pay) FROM mari_loan WHERE i_loanapproval='Y') as saveLoanAmt
+		, (SELECT SUM(p_ln_amount + p_interest_amount) FROM mari_order mo LEFT JOIN cpas_payment_schedule cps ON mo.loan_id = cps.loan_id AND mo.o_count = cps.p_count WHERE mo.o_status != '연체') as savePayAmt
+		, (SELECT SUM(i_year_plus) FROM mari_loan WHERE i_loanapproval='Y') as avgProfSum
+		, (SELECT COUNT(i_year_plus) FROM mari_loan WHERE i_loanapproval='Y') as avgProfCnt
+		, (SELECT COUNT(DISTINCT loan_id) FROM mari_order WHERE o_status='연체') as savePayCnt
+		, (SELECT COUNT(loan_step4) FROM mari_loan WHERE loan_step4 = 'Y') as investCnt
+		, ( SELECT i_default_rates FROM mari_inset ) as defaultRate) BB;
+    </select> -->
+    <select id="selectStatisticsWebById" resultType="com.crepass.restfulapi.one.domain.OneStatistics" parameterType="string">
+        SELECT tot_loan_amt AS saveLoanAmt, tot_repay_amt AS savePayAmt, tot_balance_amt AS loanBalance, avg_prof_rate AS avgProfAmt, overdue_rate AS delqRate, default_rate AS defaultRate
+        FROM cpas_loan_status cls
+        WHERE date_format(created_dt,'%Y-%m') = date_format(NOW(),'%Y-%m')
+        ORDER BY created_dt ASC LIMIT 1;
+    </select>
+    
+    <select id="selectStatisticsIsInvest" resultType="string" parameterType="string">
+        SELECT DISTINCT IF(mi.m_id IS NOT NULL OR IFNULL((SELECT SUM(trx_amt) FROM cpas_trx_log WHERE trx_type = 'D' AND type_flag = 'I' AND m_id = mm.m_id)
+		- (SELECT SUM(trx_amt) FROM cpas_trx_log WHERE trx_type = 'W' AND type_flag = 'I' AND m_id = mm.m_id), 0) > 0, '1', NULL)
+		FROM mari_member mm LEFT JOIN mari_invest mi ON mi.m_id = mm.m_id WHERE mm.m_id = #{param1};
+    </select>
+    
+    <select id="selectStatisticsInvest" resultType="com.crepass.restfulapi.one.domain.OneStatisticsInvest" parameterType="string">
+	    <![CDATA[
+			SELECT IFNULL(SUM(IF(ml.loan_step4 = 'N', mi.i_pay, 0)), 0) AS investingPay
+			, IFNULL((SELECT SUM(trx_amt) FROM cpas_trx_log WHERE m_id = #{param1} AND type_flag = 'I' AND trx_type = 'D')
+			- (SELECT SUM(trx_amt) FROM cpas_trx_log WHERE m_id = #{param1} AND type_flag = 'I' AND trx_type = 'W')
+			- SUM(IF(ml.loan_step4 = 'N', mi.i_pay, 0))
+			- (SELECT IFNULL(SUM(trx_amt), 0) FROM cpas_withdraw_trx WHERE m_id = #{param1} AND type_flag = 'I' AND trx_flag = 'N'), 0) AS restDepositPay
+			, IFNULL((SELECT SUM(trx_amt) FROM cpas_trx_log WHERE m_id = #{param1} AND type_flag = 'I' AND trx_type = 'D')
+			- (SELECT SUM(trx_amt) FROM cpas_trx_log WHERE m_id = #{param1} AND type_flag = 'I' AND trx_type = 'W'), 0) AS totDepositPay
+			, IFNULL(SUM(IF(ml.loan_step4 = 'Y', mi.i_pay, 0)), 0) AS investPay
+			, (SELECT IFNULL(SUM(p_ln_amount + p_interest_amount), 0) FROM cpas_payment_schedule WHERE p_pay_status = 'C' AND m_id = mi.m_id)
+			+ (SELECT IFNULL(SUM(p_pay_amount + p_tax + p_tax_local), 0) FROM cpas_prepayment_provide WHERE m_id = mi.m_id) AS totPayAmount
+			, (SELECT IFNULL(SUM(p_ln_amount), 0) FROM cpas_payment_schedule WHERE p_pay_status = 'C' AND m_id = mi.m_id)
+			+ (SELECT IFNULL(SUM((p_pay_amount + p_tax + p_tax_local) - p_interest), 0) FROM cpas_prepayment_provide WHERE m_id = mi.m_id) AS totInAmount
+			, (SELECT IFNULL(SUM(p_interest_amount), 0) FROM cpas_payment_schedule WHERE p_pay_status = 'C' AND m_id = mi.m_id)
+			+ (SELECT IFNULL(SUM(p_interest), 0) FROM cpas_prepayment_provide WHERE m_id = mi.m_id) AS totInterest
+			, (SELECT IFNULL(SUM(p_fee), 0) FROM cpas_payment_schedule WHERE p_pay_status = 'C' AND m_id = mi.m_id)
+			+ (SELECT IFNULL(SUM(p_fee), 0) FROM cpas_prepayment_provide WHERE m_id = mi.m_id) AS totFee
+			, (SELECT IFNULL(SUM(p_tax + p_tax_local), 0) FROM cpas_payment_schedule WHERE p_pay_status = 'C' AND m_id = mi.m_id)
+			+ (SELECT IFNULL(SUM(p_tax + p_tax_local), 0) FROM cpas_prepayment_provide WHERE m_id = mi.m_id) AS totTax
+			FROM mari_invest mi, mari_loan ml
+			WHERE ml.i_id = mi.loan_id AND ml.i_loanapproval <> 'C'
+			AND mi.m_id = #{param1};
+		]]>
+    </select>
+    
+    
+    <!-- apiv2 -->
+    <select id="getInvestMember" resultType="com.crepass.restfulapi.v2.domain.InvestMember" parameterType="string">
+	   	<![CDATA[
+	   		select ifnull(sum(if(ml.loan_step4 = 'Y', mi.i_pay,0)) * (0.24-0.055), 0) as investingPay
+			    , ifnull(( SELECT
+							(SELECT SUM(trx_amt) FROM cpas_trx_log WHERE m_id = mi.m_id  AND type_flag = 'I' AND trx_type = 'D') - 
+							(SELECT SUM(trx_amt) FROM cpas_trx_log WHERE m_id = mi.m_id AND type_flag = 'I' AND trx_type = 'W')), 0) as totDepositPay
+				, ifnull(sum(if(ml.loan_step4 = 'Y', mi.i_pay, 0)), 0) as investPay
+			    , TRUNCATE(
+					((SELECT IFNULL(SUM(cps.p_interest_amount + cps.p_delq_amount - cps.p_tax - cps.p_tax_local - cps.p_fee), 0)
+						FROM cpas_payment_schedule cps
+						WHERE m_id = #{mid} AND p_pay_status = 'C')
+						+
+					(SELECT IFNULL(SUM(p_interest - p_tax - p_tax_local - p_fee), 0)
+						FROM cpas_prepayment_provide
+						WHERE m_id = #{mid})) 
+					 / (SELECT SUM(mi.i_pay)
+						FROM mari_invest mi, mari_loan ml
+						WHERE mi.loan_id = ml.i_id AND i_exec_date IS NOT NULL
+						AND mi.m_id = #{mid}) * 100 ,2)
+						AS profitsRate
+			from mari_invest mi
+			inner join mari_loan ml on ml.i_id = mi.loan_id and ml.i_loanapproval <> 'C' and mi.m_id = #{mid}
+       ]]>
+	</select>
+
+<!-- 200413 "and crs.r_delq_state > 0" 부분 제거 	 -->
+<!-- 	left join cpas_repayment_schedule crs on crs.loan_id = ml.i_id and crs.r_count in (select distinct p_count from cpas_payment_schedule where ml.i_id = loan_id and p_pay_status = 'N') and crs.r_delq_state > 0 -->
+
+	<select id="getLoanMember" resultType="com.crepass.restfulapi.v2.domain.LoanMember" parameterType="string">
+		<![CDATA[
+			select ifnull((select sum(i_loan_pay) from mari_loan where m_id = ml.m_id and i_exec_date is not null), 0) as loanMoney
+				, ifnull(sum(crs.r_ln_amount), 0) as balanceMoney
+				, ifnull((select sum(i_loan_pay) from mari_loan where m_id = ml.m_id and i_exec_date is not null), 0) - ifnull(sum(crs.r_ln_amount), 0) as repayMoney
+				, ifnull(round((sum(crs.r_ln_amount) + sum(crs.r_delq_amount)) /(select sum(i_loan_pay) from mari_loan where m_id = ml.m_id AND i_exec_date is not null), 2), 0) as latePercent
+				, IFNULL((SELECT i_id FROM mari_loan WHERE m_id = #{mid} AND loan_step4 = 'N' AND i_loanapproval = 'E' ORDER BY i_id ASC LIMIT 1), 0) AS contractNum
+				, IFNULL((SELECT s_crepass_grade FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1),'E') AS cGrade
+				, IFNULL((SELECT s_score FROM cpas_lenddo_score WHERE m_id = ml.m_id ORDER BY s_update_date DESC LIMIT 1), 0) AS scoreLenddo
+				, ROUND((IFNULL((SELECT SUM(i_loan_pay) FROM mari_loan WHERE m_id = ml.m_id AND i_exec_date IS NOT NULL), 0) - IFNULL(SUM(crs.r_ln_amount), 0)) / IFNULL((SELECT SUM(i_loan_pay) FROM mari_loan WHERE m_id = ml.m_id AND i_exec_date IS NOT NULL), 0) * 100 , 2) AS repayPercent
+			from mari_loan ml
+			left join cpas_repayment_schedule crs on crs.loan_id = ml.i_id and crs.r_count in (select distinct p_count from cpas_payment_schedule where ml.i_id = loan_id and p_pay_status = 'N') 
+			where ml.m_id = #{mid} and ml.i_exec_date is not null;
+		]]>
+	</select>
+	
+	<select id="selectMemberInvestInfo" resultType="com.crepass.restfulapi.v2.domain.MemberInvestInfo" parameterType="string">
+		<![CDATA[
+			SELECT RIGHT(CAST(AES_DECRYPT(FROM_BASE64(m_reginum),'0982beb15fb2f0c584fa5872527c58b9', '0982beb15fb2f0c5') AS CHAR), 6) AS reginum
+			, m_my_bankacc AS bankAccntNum, ms.s_accntNo AS investVirAccntNum FROM mari_member mm, mari_seyfert ms WHERE ms.m_id = mm.m_id AND mm.m_id = #{mid};
+		]]>
+	</select>
+</mapper>

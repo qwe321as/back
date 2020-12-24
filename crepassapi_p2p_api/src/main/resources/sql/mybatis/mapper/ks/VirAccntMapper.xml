@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.ks.dao.VirAccntMapper">
+
+    <select id="selectVirAccntInfo" resultType="com.crepass.restfulapi.ks.domain.VirAccnt" parameterType="string">
+		SELECT BANK_CODE, VR_ACCT_NO, CORP_NAME, USE_FLAG, REF_NO
+		FROM KSNET_VR_ACCOUNT
+		WHERE VR_ACCT_NO = #{param1};
+    </select>
+    
+    <update id="updateVirAccntUse" parameterType="String">
+		<![CDATA[
+			UPDATE KSNET_VR_ACCOUNT
+			SET CORP_NAME = #{param2}
+				, REF_NO = #{param3}
+			    , USE_FLAG = 'Y'
+			WHERE VR_ACCT_NO = #{param1};
+		]]>
+    </update>
+    
+    <update id="updateVirAccntExpire" parameterType="String">
+		<![CDATA[
+			UPDATE KSNET_VR_ACCOUNT
+			SET USE_FLAG = 'N'
+			WHERE VR_ACCT_NO = #{param1};
+		]]>
+    </update>
+    
+</mapper>

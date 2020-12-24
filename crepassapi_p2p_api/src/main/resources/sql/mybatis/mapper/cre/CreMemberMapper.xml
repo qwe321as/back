@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crepass.restfulapi.cre.dao.CreMemberMapper">
+
+    <insert id="insertCreMember" parameterType="com.crepass.restfulapi.cre.domain.CreMember">
+        <![CDATA[
+            insert into crep2p_member(
+                m_id
+                , m_char_type
+                , m_player_id
+                , m_last_update_date
+            ) values (
+                #{mid}
+                , #{charType}
+                , #{mid}
+                , CURRENT_TIMESTAMP(6)
+            )
+        ]]>
+    </insert>
+    
+    <select id="selectMemberById" resultType="com.crepass.restfulapi.cre.domain.CreMember" parameterType="string">
+        select m_id as mid 
+                , m_char_type as charType
+                , m_alarm as alarm
+                , m_tdiary_msg as tdiaryMsg
+                , '' as name
+          from crep2p_member 
+         where m_id = #{param1}
+    </select>
+    
+    <insert id="deleteBackupMemberById" parameterType="string">
+        <![CDATA[
+            insert into crep2p_member_leave(
+                m_id
+                ,m_char_type
+                ,m_last_login
+                ,m_last_update
+            ) 
+            SELECT m_id
+                    ,m_char_type
+                    ,m_last_login
+                    ,m_last_update
+            FROM crep2p_member
+            WHERE m_id = #{param1}; 
+        ]]>
+    </insert>    
+    
+    <delete id="deleteMemberById" parameterType="string">
+        <![CDATA[
+            DELETE FROM crep2p_member
+            WHERE m_id = #{param1}; 
+        ]]>
+    </delete>  
+    
+    <update id="updateMemberById" parameterType="string">
+        <![CDATA[
+            UPDATE crep2p_member
+            SET m_char_type = #{param2}
+            WHERE m_id = #{param1}
+        ]]>
+    </update>  
+    
+    <insert id="insertCreMemberAgreed" parameterType="com.crepass.restfulapi.cre.domain.CreMemberAgreed">
+        <![CDATA[
+            INSERT INTO crep2p_member_agreed(
+                    m_id
+                    , ma_self_confirm
+                    , ma_pinf_gather
+                    , ma_uinf_process
+                    , ma_self_service
+                    , ma_telco_gb
+                    , ma_sms_receive
+                    , ma_use_confirm
+                    , ma_last_update_date
+            ) VALUES (
+                    #{mid}
+                    , #{selfConfirm}
+                    , #{pinfGather}
+                    , #{uinfProcess}
+                    , #{selfService}
+                    , #{telcoGb}
+                    , #{sms}
+                    , #{agreeTerms}
+                    , CURRENT_TIMESTAMP
+            );
+        ]]>
+    </insert> 
+    
+    <select id="selectPushTarget" resultType="string">
+        select CONCAT('"', m_player_id, '"') as playId
+          from crep2p_member 
+         where m_tdiary_msg = '1' 
+    </select>
+    
+    <update id="updateMemberByPlayerId" parameterType="string">
+        <![CDATA[
+            UPDATE crep2p_member
+            SET m_player_id = #{param2}
+            WHERE m_id = #{param1}
+        ]]>
+    </update>  
+
+	<!-- API V2 START -->
+
+	<insert id="insertAgreeList">
+    	INSERT INTO crep2p_agreed_history(cust_id, agreed_code, is_agreed) 
+    	VALUES (#{custId}, #{agreeCodeName}, #{isAgree})
+    </insert>
+    
+
+</mapper>
